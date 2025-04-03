@@ -1,5 +1,3 @@
-# LEAKTRAK API
-
 A robust, enterprise-level Express TypeScript backend application for tracking and managing data leaks.
 
 ## Features
