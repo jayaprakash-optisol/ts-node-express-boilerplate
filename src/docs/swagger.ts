@@ -16,19 +16,15 @@ const swaggerDefinition = {
       url: 'https://opensource.org/licenses/MIT',
     },
     contact: {
-      name: 'LeakTrak Support',
-      url: 'https://leaktrak.com',
-      email: 'support@leaktrak.com',
+      name: 'Dev',
+      url: 'https:/localhost.com',
+      email: 'support@localhost.com',
     },
   },
   servers: [
     {
       url: `http://localhost:${env.PORT}${env.API_PREFIX}`,
       description: 'Development Server',
-    },
-    {
-      url: `https://api.leaktrak.com${env.API_PREFIX}`,
-      description: 'Production Server',
     },
   ],
   components: {

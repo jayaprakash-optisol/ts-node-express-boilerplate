@@ -3,6 +3,7 @@ import app from './app';
 import env from './config/env.config';
 import { logger } from './utils/logger';
 import { closePool } from './config/database.config';
+import { closeRedisConnections } from './utils/redis.util';
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -11,54 +12,48 @@ const server = http.createServer(app);
 const PORT = env.PORT || 3000;
 server.listen(PORT, () => {
   logger.info(`✅ Server running on port ${PORT} in ${env.NODE_ENV} mode`);
+  console.log(`✅ Server running on port ${PORT} in ${env.NODE_ENV} mode`);
   logger.info(`🚀 API documentation available at http://localhost:${PORT}/api-docs`);
+  console.log(`🚀 API documentation available at http://localhost:${PORT}/api-docs`);
 });
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (error: Error) => {
-  logger.error('❌ Unhandled Rejection:', error);
-  // Close server & exit process
+// Graceful shutdown handler
+const shutdown = async (signal: string): Promise<void> => {
+  logger.info(`${signal} received. Starting graceful shutdown...`);
+
   server.close(() => {
-    logger.info('Server closed due to unhandled promise rejection');
-    process.exit(1);
+    logger.info('HTTP server closed');
   });
+
+  try {
+    // Close database connections
+    await closePool();
+    logger.info('Database connections closed');
+
+    // Close Redis connections
+    await closeRedisConnections();
+    logger.info('Redis connections closed');
+
+    logger.info('Graceful shutdown completed');
+    process.exit(0);
+  } catch (error) {
+    logger.error('Error during shutdown:', error);
+    process.exit(1);
+  }
+};
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason: Error) => {
+  logger.error('❌ Unhandled Rejection:', reason);
+  shutdown('Unhandled Rejection');
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error: Error) => {
   logger.error('❌ Uncaught Exception:', error);
-  // Close server & exit process
-  server.close(() => {
-    logger.info('Server closed due to uncaught exception');
-    process.exit(1);
-  });
+  shutdown('Uncaught Exception');
 });
 
-// Graceful shutdown
-const shutdown = async () => {
-  logger.info('Received shutdown signal. Closing HTTP server...');
-  server.close(() => {
-    logger.info('HTTP server closed');
-
-    // Close database connection
-    closePool()
-      .then(() => {
-        logger.info('All connections closed successfully');
-        process.exit(0);
-      })
-      .catch(err => {
-        logger.error('Error during shutdown:', err);
-        process.exit(1);
-      });
-  });
-
-  // Force close after timeout
-  setTimeout(() => {
-    logger.error('Could not close connections in time, forcefully shutting down');
-    process.exit(1);
-  }, 10000);
-};
-
 // Listen for termination signals
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
