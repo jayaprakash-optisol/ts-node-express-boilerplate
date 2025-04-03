@@ -8,32 +8,19 @@ import { getRateLimiterRedis } from '../utils/redis.util';
 // Create Redis client for rate limiting
 const redisClient = getRateLimiterRedis();
 
-// Create a general API rate limiter
+// Create a single API rate limiter for all endpoints
 const apiLimiter = new RateLimiterRedis({
   storeClient: redisClient,
   keyPrefix: 'api',
-  points: env.NODE_ENV === 'test' ? 1000 : env.RATE_LIMIT_MAX,
-  duration: env.RATE_LIMIT_WINDOW_MS / 1000, // Convert from ms to seconds
-  blockDuration: 60, // Block for 1 minute if exceeds points
-});
-
-// Create a more strict auth rate limiter
-const authLimiter = new RateLimiterRedis({
-  storeClient: redisClient,
-  keyPrefix: 'auth',
-  points: env.NODE_ENV === 'test' ? 1000 : 10, // 10 attempts
+  points: env.NODE_ENV === 'test' ? 1000 : env.RATE_LIMIT_MAX, // 5 requests per duration
   duration: 15 * 60, // 15 minutes
-  blockDuration: 60 * 30, // Block for 30 minutes if exceeds points
+  blockDuration: 30 * 60, // 30 minutes
 });
 
-// Create a user creation rate limiter
-const userCreationLimiter = new RateLimiterRedis({
-  storeClient: redisClient,
-  keyPrefix: 'user:creation',
-  points: env.NODE_ENV === 'test' ? 1000 : 5, // 5 attempts
-  duration: 60 * 60, // 1 hour
-  blockDuration: 60 * 60 * 24, // Block for 24 hours if exceeds points
-});
+// Log rate limiter configuration
+logger.info(
+  `API Rate Limiter - limit: ${apiLimiter.points} requests per ${apiLimiter.duration}s, block: ${30}s`,
+);
 
 /**
  * Middleware factory that creates rate limiters
@@ -48,17 +35,49 @@ const createRateLimiterMiddleware = (
       // Get client IP
       const clientIp = req.ip ?? req.socket.remoteAddress ?? '0.0.0.0';
 
+      // Add route to key for better tracking
+      const key = `${clientIp}:${req.method}:${req.baseUrl}${req.path}`;
+
+      // Add debug logging to track rate limiting
+      logger.debug(`Rate limit check for key: ${key}`);
+
       // Consume points
-      await limiter.consume(clientIp);
+      await limiter.consume(key);
+
+      // Log remaining points for debugging
+      const res = await limiter.get(key);
+      if (res) {
+        // Use info level for standard rate limit logs
+        logger.info(
+          `RATE_LIMIT_CHECK | Key: ${key} | Remaining: ${res.remainingPoints}/${limiter.points} | Reset: ${Math.round(res.msBeforeNext / 1000)}s`,
+          {
+            type: 'rate_limit_check',
+            clientIp: req.ip,
+            path: `${req.method} ${req.baseUrl}${req.path}`,
+            remaining: res.remainingPoints,
+            limit: limiter.points,
+            reset: Math.round(res.msBeforeNext / 1000),
+          },
+        );
+      }
+
       next();
     } catch (error) {
-      // Check if it's a rate limiter error
-      if (error instanceof Error && 'remainingPoints' in error) {
+      // The rate-limiter-flexible package throws errors as objects with these properties
+      // rather than as proper Error instances, so we need to check for specific properties
+      if (
+        error &&
+        typeof error === 'object' &&
+        'remainingPoints' in error &&
+        'msBeforeNext' in error &&
+        'consumedPoints' in error
+      ) {
         const rateLimiterRes = error as unknown as RateLimiterRes;
-        const retryAfter = Math.round(rateLimiterRes.msBeforeNext / 1000) || 60;
+        const retryAfter = Math.round(rateLimiterRes.msBeforeNext / 1000) || 30;
 
-        logger.warn(
-          `Rate limit exceeded for IP: ${req.ip}, path: ${req.path}, retry after: ${retryAfter}s`,
+        // Log rate limit errors as errors instead of warnings to ensure they're captured
+        logger.error(
+          `RATE_LIMIT_EXCEEDED | IP: ${req.ip} | Path: ${req.method} ${req.baseUrl}${req.path} | Retry: ${retryAfter}s | Consumed: ${rateLimiterRes.consumedPoints}/${limiter.points}`,
         );
 
         // Set rate limiting headers
@@ -86,5 +105,3 @@ const createRateLimiterMiddleware = (
 
 // Export middleware
 export const apiRateLimiter = createRateLimiterMiddleware(apiLimiter);
-export const authRateLimiter = createRateLimiterMiddleware(authLimiter);
-export const userCreationRateLimiter = createRateLimiterMiddleware(userCreationLimiter);

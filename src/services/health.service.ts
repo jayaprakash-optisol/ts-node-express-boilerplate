@@ -31,7 +31,7 @@ export class HealthService {
   async checkHealth(): Promise<HealthCheckResult> {
     const timestamp = new Date().toISOString();
     const status = 'UP';
-    const version = process.env.npm_package_version || 'unknown';
+    const version = process.env.npm_package_version ?? 'unknown';
 
     // Check components
     const components = {

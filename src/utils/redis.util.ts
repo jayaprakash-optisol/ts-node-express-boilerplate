@@ -14,7 +14,7 @@ export const createRedisClient = (options: Partial<RedisOptions> = {}): Redis =>
   const client = new Redis({
     host: env.REDIS_HOST,
     port: parseInt(env.REDIS_PORT, 10),
-    password: env.REDIS_PASSWORD || undefined,
+    password: env.REDIS_PASSWORD ?? undefined,
     enableOfflineQueue: false,
     ...options,
   });

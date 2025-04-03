@@ -59,7 +59,17 @@ class App {
     this.app.use(compression());
 
     // Logging
-    this.app.use(morgan('combined', { stream }));
+    if (env.NODE_ENV === 'production') {
+      this.app.use(morgan('combined', { stream }));
+    } else {
+      // Simple, clean log format for development
+      this.app.use(
+        morgan(':method :url :status :response-time[0]ms', {
+          stream,
+          skip: req => req.url === '/health',
+        }),
+      );
+    }
 
     // Global rate limiting with Redis
     this.app.use(apiRateLimiter);

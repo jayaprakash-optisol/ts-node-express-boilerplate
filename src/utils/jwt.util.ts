@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { JwtPayload } from '../types';
 import env from '../config/env.config';
 import { logger } from './logger';
@@ -19,9 +19,11 @@ export class JwtUtil implements IJwtUtil {
         throw new Error('JWT_SECRET is not defined');
       }
 
-      return jwt.sign(payload, env.JWT_SECRET, {
-        expiresIn: parseInt(env.JWT_EXPIRES_IN, 10),
-      });
+      // Using JWT_EXPIRES_IN as seconds (86400 = 24 hours)
+      const expiresIn = env.JWT_EXPIRES_IN;
+
+      const options: SignOptions = { expiresIn } as SignOptions;
+      return jwt.sign(payload, env.JWT_SECRET, options);
     } catch (error) {
       logger.error('Error generating JWT token:', error);
       throw error;

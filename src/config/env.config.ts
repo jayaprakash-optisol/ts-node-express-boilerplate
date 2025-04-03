@@ -16,7 +16,10 @@ const envSchema = z.object({
 
   // JWT
   JWT_SECRET: z.string(),
-  JWT_EXPIRES_IN: z.string().default('1d'),
+  JWT_EXPIRES_IN: z
+    .string()
+    .transform(val => parseInt(val, 10))
+    .default('86400'),
 
   // Bcrypt
   BCRYPT_SALT_ROUNDS: z

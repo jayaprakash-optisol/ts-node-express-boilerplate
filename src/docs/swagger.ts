@@ -8,9 +8,9 @@ import env from '../config/env.config';
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'LeakTrak API Documentation',
+    title: 'API Documentation',
     version,
-    description: 'Enterprise-level API documentation for the LeakTrak application',
+    description: 'API documentation for the application',
     license: {
       name: 'MIT',
       url: 'https://opensource.org/licenses/MIT',
@@ -184,7 +184,7 @@ const swaggerDefinition = {
  */
 const options = {
   swaggerDefinition,
-  apis: ['./src/docs/**/*.yaml'],
+  apis: ['./src/docs/index.yaml', './src/docs/routes/**/*.yaml'],
 };
 
 /**
