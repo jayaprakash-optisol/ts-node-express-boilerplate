@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: local
     ports:
-      - '5432:5432'
+      - '5434:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -32,6 +32,48 @@ services:
       timeout: 5s
       retries: 5
 
+  sonar-postgres:
+    image: postgres:13-alpine
+    container_name: sonar-postgres
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar_postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sonar']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  sonarqube:
+    image: sonarqube:9.9-community
+    container_name: sonarqube
+    environment:
+      - SONAR_JDBC_URL=jdbc:postgresql://sonar-postgres:5432/sonar
+      - SONAR_JDBC_USERNAME=sonar
+      - SONAR_JDBC_PASSWORD=sonar
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    ports:
+      - '9000:9000'
+    depends_on:
+      - sonar-postgres
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
 volumes:
   postgres_data:
   redis_data:
+  sonar_postgres_data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:

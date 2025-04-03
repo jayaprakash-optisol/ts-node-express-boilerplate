@@ -16,7 +16,6 @@ interface HealthCheckResult {
   status: string;
   timestamp: string;
   environment: string;
-  version: string;
   components: HealthComponent;
 }
 
@@ -31,7 +30,6 @@ export class HealthService {
   async checkHealth(): Promise<HealthCheckResult> {
     const timestamp = new Date().toISOString();
     const status = 'UP';
-    const version = process.env.npm_package_version ?? 'unknown';
 
     // Check components
     const components = {
@@ -43,7 +41,6 @@ export class HealthService {
       status,
       timestamp,
       environment: env.NODE_ENV,
-      version,
       components,
     };
   }

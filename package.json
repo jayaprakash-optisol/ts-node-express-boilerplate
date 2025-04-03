@@ -13,12 +13,12 @@
     "test:unit": "jest --coverage tests/unit",
     "test:integration": "jest --coverage tests/integration",
     "test:watch": "jest --watch",
+    "sonar": "ts-node sonar-scanner.ts",
     "migrate": "ts-node src/database/scripts/migrate.ts",
     "seed": "ts-node src/database/scripts/seed.ts",
     "generate-types": "drizzle-kit generate:pg --out src/database/models",
     "db:generate": "drizzle-kit generate:pg",
-    "db:push": "drizzle-kit push:pg",
-    "swagger": "ts-node src/utils/swagger.ts"
+    "db:push": "drizzle-kit push:pg"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
+    "@types/better-sqlite3": "^7.6.12",
     "@types/compression": "^1.7.3",
     "@types/cors": "^2.8.14",
     "@types/express": "^4.17.18",
@@ -58,17 +59,26 @@
     "@types/swagger-ui-express": "^4.1.4",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
+    "better-sqlite3": "^11.9.1",
     "drizzle-kit": "^0.19.13",
     "eslint": "^8.51.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
     "jest": "^29.7.0",
+    "jest-sonar-reporter": "^2.0.0",
     "nodemon": "^3.0.2",
+    "pg-mem": "^3.0.5",
     "prettier": "^3.0.3",
+    "sonarqube-scanner": "^3.3.0",
     "supertest": "^6.3.3",
     "ts-jest": "^29.3.1",
     "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.2.2"
+  },
+  "jestSonar": {
+    "reportPath": "coverage",
+    "reportFile": "test-report.xml",
+    "indent": 4
   }
 }

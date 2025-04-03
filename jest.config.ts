@@ -9,13 +9,21 @@ export default {
   },
   collectCoverage: true,
   coverageDirectory: 'coverage',
-  coveragePathIgnorePatterns: ['/node_modules/', '/tests/'],
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '/tests/',
+    '/src/index.ts',
+    '/src/database/scripts/',
+  ],
+  coverageReporters: ['text', 'lcov', 'clover', 'json'],
+  reporters: ['default'],
+  testResultsProcessor: 'jest-sonar-reporter',
   coverageThreshold: {
     global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
     },
   },
 };

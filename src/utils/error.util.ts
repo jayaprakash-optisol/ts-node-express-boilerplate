@@ -54,6 +54,6 @@ export const createServiceResponse = <T>(
     data,
     error,
     statusCode,
-    message: success ? 'Operation successful' : error || 'Operation failed',
+    message: success ? 'Operation successful' : (error ?? 'Operation failed'),
   };
 };

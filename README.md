@@ -155,6 +155,83 @@ http://localhost:3000/api-docs
   npm run test:watch
   ```
 
+## Code Quality with SonarQube
+
+This project includes SonarQube integration for code quality and coverage analysis.
+
+### Setup SonarQube
+
+1. Start the SonarQube server using Docker Compose:
+
+   ```
+   docker-compose up -d sonarqube sonar-postgres
+   ```
+
+2. Wait for SonarQube to start (this may take a few minutes)
+
+3. Access the SonarQube dashboard at http://localhost:9000
+
+   - Default credentials: admin/admin
+   - You'll be prompted to change the password on first login
+
+4. Generate a token in SonarQube:
+
+   - Go to User > My Account > Security
+   - Generate a token and copy it
+
+5. Add the token to your .env file:
+   ```
+   SONAR_TOKEN=your_generated_token
+   SONAR_SERVER_URL=http://localhost:9000
+   ```
+
+### Run Code Analysis
+
+1. Run tests with coverage:
+
+   ```
+   npm test
+   ```
+
+2. Run SonarQube analysis:
+
+   ```
+   npm run sonar
+   ```
+
+3. View the results in the SonarQube dashboard at http://localhost:9000
+
+### Troubleshooting
+
+- If SonarQube fails to start, try:
+
+  ```
+  docker-compose down
+  docker-compose up -d sonar-postgres
+  docker-compose up -d sonarqube
+  ```
+
+- If you encounter memory errors, increase Docker memory limits in Docker Desktop settings
+
+- To check container logs:
+  ```
+  docker logs sonarqube
+  ```
+
+### Stopping SonarQube
+
+When you're done with SonarQube, you can stop it:
+
+```
+docker-compose stop sonarqube sonar-postgres
+```
+
+To remove the containers:
+
+```
+docker-compose rm -f sonarqube sonar-postgres
+```
+
 ## Available Scripts
 
 - `npm start` - Start the production server
@@ -165,6 +242,7 @@ http://localhost:3000/api-docs
 - `npm test` - Run tests with coverage
 - `npm run migrate` - Run database migrations
 - `npm run swagger` - Generate Swagger documentation
+- `npm run sonar` - Run SonarQube analysis
 
 ## License
 

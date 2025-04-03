@@ -11,7 +11,5 @@ export default {
     connectionString: process.env.DATABASE_URL || '',
   },
   verbose: true,
-  strict: true,
-  // Protect migration_history table from being dropped
-  tablesFilter: '!migration_history',
+  strict: false,
 } satisfies Config;

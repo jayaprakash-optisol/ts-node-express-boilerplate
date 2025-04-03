@@ -16,7 +16,7 @@ async function seedUsers() {
 
     await db.insert(users).values([
       {
-        email: 'admin@leaktrak.com',
+        email: 'admin@yopmail.com',
         password: hashedPassword,
         firstName: 'Admin',
         lastName: 'User',
@@ -26,7 +26,7 @@ async function seedUsers() {
         updatedAt: new Date(),
       },
       {
-        email: 'user@leaktrak.com',
+        email: 'user@yopmail.com',
         password: hashedPassword,
         firstName: 'Regular',
         lastName: 'User',
@@ -36,7 +36,7 @@ async function seedUsers() {
         updatedAt: new Date(),
       },
       {
-        email: 'manager@leaktrak.com',
+        email: 'manager@yopmail.com',
         password: hashedPassword,
         firstName: 'Manager',
         lastName: 'User',
