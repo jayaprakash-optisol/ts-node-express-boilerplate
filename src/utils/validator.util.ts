@@ -6,6 +6,9 @@ import { logger } from './logger';
 interface RequestWithUser extends Request {
   user?: {
     id: string;
+    userId?: number;
+    email: string;
+    role: string;
   };
 }
 

@@ -1,38 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import rateLimit from 'express-rate-limit';
 import env from '../config/env.config';
 
 const CSP_POLICY =
   "default-src 'self'; script-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'";
-
-/**
- * Rate limiting middleware for authentication endpoints
- * More restrictive than the global rate limit
- */
-export const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 requests per windowMs
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  message: {
-    success: false,
-    error: 'Too many login attempts, please try again later',
-  },
-});
-
-/**
- * Rate limiting middleware for user creation endpoints
- */
-export const userCreationRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // limit each IP to 5 user creations per hour
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: 'Too many user creation attempts, please try again later',
-  },
-});
 
 /**
  * CORS configuration middleware

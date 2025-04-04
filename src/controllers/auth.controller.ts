@@ -2,13 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 import { IAuthService } from '../types/interfaces';
 import { createBadRequestError, createUnauthorizedError } from '../utils/error.util';
-import container from '../di/container';
+import { AuthService } from '../services/auth.service';
 
 export class AuthController {
   private readonly authService: IAuthService;
 
   constructor() {
-    this.authService = container.resolve<IAuthService>('authService');
+    this.authService = AuthService.getInstance();
   }
 
   /**

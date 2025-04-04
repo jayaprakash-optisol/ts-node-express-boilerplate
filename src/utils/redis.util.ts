@@ -30,20 +30,6 @@ export const createRedisClient = (options: Partial<RedisOptions> = {}): Redis =>
 };
 
 /**
- * Get a Redis client for rate limiting
- * @returns Redis client instance
- */
-export const getRateLimiterRedis = (): Redis => {
-  return createRedisClient({
-    keyPrefix: 'ratelimit:',
-    retryStrategy: (times: number) => {
-      // Retry until we connect, increasing delay
-      return Math.min(times * 50, 2000);
-    },
-  });
-};
-
-/**
  * Get a Redis client for health checks
  * @returns Redis client instance
  */

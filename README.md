@@ -40,7 +40,6 @@ ts-node-express-boilerplate/
 │   ├── config/        # Application configuration
 │   ├── controllers/   # Route controllers
 │   ├── database/      # Database setup and migrations
-│   ├── di/            # Dependency injection
 │   ├── docs/          # API documentation
 │   ├── middleware/    # Express middleware
 │   ├── models/        # Data models and schemas

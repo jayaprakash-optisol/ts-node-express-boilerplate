@@ -1,8 +1,10 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { JwtPayload } from '../types';
+import { JwtPayload, ServiceResponse } from '../types';
 import env from '../config/env.config';
 import { logger } from './logger';
 import { IJwtUtil } from '../types/interfaces';
+import { createServiceResponse } from './error.util';
+import { StatusCodes } from 'http-status-codes';
 
 /**
  * JWT utility functions for token generation and verification
@@ -33,18 +35,38 @@ export class JwtUtil implements IJwtUtil {
   /**
    * Verify a JWT token
    * @param token The token to verify
-   * @returns The decoded token payload
+   * @returns The decoded token payload or error
    */
-  verifyToken(token: string): JwtPayload {
+  verifyToken(token: string): ServiceResponse<JwtPayload> {
     try {
       if (!env.JWT_SECRET) {
         throw new Error('JWT_SECRET is not defined');
       }
 
-      return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+      const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+      return createServiceResponse(true, decoded);
     } catch (error) {
       logger.error('Error verifying JWT token:', error);
-      throw error;
+
+      // Empty JwtPayload object for error case
+      const emptyPayload: JwtPayload = { userId: 0, email: '', role: '' };
+
+      // Handle specific token errors
+      if ((error as any)?.name === 'TokenExpiredError') {
+        return createServiceResponse(
+          false,
+          emptyPayload,
+          'Token expired',
+          StatusCodes.UNAUTHORIZED,
+        );
+      }
+
+      return createServiceResponse(
+        false,
+        emptyPayload,
+        (error as Error).message || 'Invalid token',
+        StatusCodes.UNAUTHORIZED,
+      );
     }
   }
 

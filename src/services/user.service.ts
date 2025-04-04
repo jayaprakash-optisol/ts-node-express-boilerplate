@@ -13,6 +13,20 @@ interface ErrorWithStatusCode extends Error {
 }
 
 export class UserService implements IUserService {
+  private static instance: UserService;
+
+  private constructor() {}
+
+  /**
+   * Get singleton instance
+   */
+  public static getInstance(): UserService {
+    if (!UserService.instance) {
+      UserService.instance = new UserService();
+    }
+    return UserService.instance;
+  }
+
   /**
    * Create a new user
    */
