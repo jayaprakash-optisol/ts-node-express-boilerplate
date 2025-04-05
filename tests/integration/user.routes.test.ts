@@ -77,7 +77,7 @@ jest.mock('../../src/middleware/auth.middleware', () => {
 });
 
 // Define API prefix to match app configuration
-const API_PREFIX = '/api';
+const API_PREFIX = '/api/v1';
 
 describe('User Routes', () => {
   let userService: any;
