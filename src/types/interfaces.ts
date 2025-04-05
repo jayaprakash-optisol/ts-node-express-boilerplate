@@ -88,7 +88,7 @@ export interface IJwtUtil {
   /**
    * Verify a JWT token
    */
-  verifyToken(token: string): JwtPayload;
+  verifyToken(token: string): ServiceResponse<JwtPayload>;
 
   /**
    * Decode a JWT token without verification

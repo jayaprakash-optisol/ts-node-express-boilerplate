@@ -13,10 +13,15 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
     }
 
     const decoded = jwtUtil.verifyToken(token);
+
+    if (!decoded.success || !decoded.data) {
+      throw new AppError('Invalid token', 401);
+    }
+
     req.user = {
-      id: decoded.userId.toString(),
-      email: decoded.email,
-      role: decoded.role,
+      id: decoded.data.userId.toString(),
+      email: decoded.data.email,
+      role: decoded.data.role,
     };
     next();
   } catch (error) {

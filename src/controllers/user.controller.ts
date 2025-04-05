@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { IUserService } from '../types/interfaces';
 import { createBadRequestError } from '../utils/error.util';
-import container from '../di/container';
+import { UserService } from '../services/user.service';
 
 export class UserController {
   private readonly userService: IUserService;
 
   constructor() {
-    this.userService = container.resolve<IUserService>('userService');
+    this.userService = UserService.getInstance();
   }
 
   /**

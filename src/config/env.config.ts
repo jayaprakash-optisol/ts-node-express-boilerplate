@@ -46,16 +46,6 @@ const envSchema = z.object({
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   LOG_FILE_PATH: z.string().default('logs/app.log'),
-
-  // Rate Limiting
-  RATE_LIMIT_WINDOW_MS: z
-    .string()
-    .transform(val => parseInt(val, 10))
-    .default('900000'),
-  RATE_LIMIT_MAX: z
-    .string()
-    .transform(val => parseInt(val, 10))
-    .default('100'),
 });
 
 // Parse and validate environment variables

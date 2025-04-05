@@ -3,7 +3,6 @@ import app from './app';
 import env from './config/env.config';
 import { logger } from './utils/logger';
 import { closePool } from './config/database.config';
-import { closeRedisConnections } from './utils/redis.util';
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -29,11 +28,6 @@ const shutdown = async (signal: string): Promise<void> => {
     // Close database connections
     await closePool();
     logger.info('Database connections closed');
-
-    // Close Redis connections
-    await closeRedisConnections();
-    logger.info('Redis connections closed');
-
     logger.info('Graceful shutdown completed');
     process.exit(0);
   } catch (error) {

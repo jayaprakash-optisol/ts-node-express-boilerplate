@@ -3,12 +3,24 @@ import { JwtPayload, NewUser, ServiceResponse, User } from '../types';
 import { IAuthService, IUserService } from '../types/interfaces';
 import { createServiceResponse } from '../utils/error.util';
 import { jwtUtil } from '../utils/jwt.util';
+import { UserService } from './user.service';
 
 export class AuthService implements IAuthService {
   private readonly userService: IUserService;
+  private static instance: AuthService;
 
-  constructor(userService: IUserService) {
-    this.userService = userService;
+  private constructor() {
+    this.userService = UserService.getInstance();
+  }
+
+  /**
+   * Get singleton instance
+   */
+  public static getInstance(): AuthService {
+    if (!AuthService.instance) {
+      AuthService.instance = new AuthService();
+    }
+    return AuthService.instance;
   }
 
   /**

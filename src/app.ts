@@ -14,11 +14,9 @@ import {
   hsts,
   cacheControl,
 } from './middleware/security.middleware';
-import { apiRateLimiter } from './middleware/rate-limiter';
 import { stream } from './utils/logger';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './docs/swagger';
-import { HealthService } from './services/health.service';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -26,11 +24,9 @@ import userRoutes from './routes/user.routes';
 
 class App {
   public app: Application;
-  private readonly healthService: HealthService;
 
   constructor() {
     this.app = express();
-    this.healthService = new HealthService();
     this.configureMiddleware();
     this.configureRoutes();
     this.configureErrorHandling();
@@ -70,9 +66,6 @@ class App {
         }),
       );
     }
-
-    // Global rate limiting with Redis
-    this.app.use(apiRateLimiter);
   }
 
   private configureRoutes(): void {
@@ -87,23 +80,6 @@ class App {
     this.app.get('/api-docs.json', (_req: Request, res: Response) => {
       res.setHeader('Content-Type', 'application/json');
       res.send(swaggerSpec);
-    });
-
-    // Health check
-    this.app.get('/health', async (_req: Request, res: Response) => {
-      try {
-        const healthData = await this.healthService.checkHealth();
-        const statusCode = healthData.components.redis.status === 'UP' ? 200 : 503;
-        res.status(statusCode).json(healthData);
-      } catch (error) {
-        // If health check fails completely, report service unavailable
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        res.status(503).json({
-          status: 'DOWN',
-          timestamp: new Date().toISOString(),
-          error: errorMessage,
-        });
-      }
     });
   }
 
