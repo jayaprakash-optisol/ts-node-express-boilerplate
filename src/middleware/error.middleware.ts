@@ -2,14 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { logger } from '../utils/logger';
 import env from '../config/env.config';
+import { AuthRequest } from '../types';
 
 // Define user interface for request
-interface RequestWithUser extends Request {
-  user?: {
-    id: string;
-    [key: string]: unknown;
-  };
-}
+type RequestWithUser = AuthRequest;
 
 // Error interfaces
 interface ValidationConstraint {
