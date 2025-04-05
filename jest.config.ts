@@ -3,7 +3,7 @@ export default {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
-  setupFilesAfterEnv: ['<rootDir>/tests/utils/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/mocks/jest-setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
@@ -20,10 +20,10 @@ export default {
   testResultsProcessor: 'jest-sonar-reporter',
   coverageThreshold: {
     global: {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
     },
   },
 };

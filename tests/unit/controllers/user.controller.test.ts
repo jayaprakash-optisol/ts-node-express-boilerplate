@@ -1,6 +1,6 @@
 import { UserController } from '../../../src/controllers/user.controller';
 import { UserService } from '../../../src/services/user.service';
-import { mockRequest, mockNext, mockUsers, mockAuthRequest } from '../../utils/mocks';
+import { mockRequest, mockNext, mockUsers, mockAuthRequest } from '../../mocks';
 
 // Mock the UserService
 jest.mock('../../../src/services/user.service', () => {

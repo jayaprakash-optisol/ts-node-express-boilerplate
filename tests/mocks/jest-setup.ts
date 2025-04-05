@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 
-// Load environment variables
+// Load test environment variables
 dotenv.config({ path: '.env.test' });
 
 // Set global timeout for tests

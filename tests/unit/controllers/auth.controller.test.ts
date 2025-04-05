@@ -7,7 +7,7 @@ import {
   mockUsers,
   mockAuthRequest,
   mockToken,
-} from '../../utils/mocks';
+} from '../../mocks/mocks';
 
 // Mock the AuthService
 jest.mock('../../../src/services/auth.service', () => {

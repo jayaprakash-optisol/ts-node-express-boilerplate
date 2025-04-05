@@ -1,9 +1,12 @@
 import { StatusCodes } from 'http-status-codes';
-import { agent } from '../utils/setup-integration';
-import { mockUsers, mockToken } from '../utils/mocks';
 import { AuthService } from '../../src/services/auth.service';
 import { Request, Response, NextFunction } from 'express';
 import 'express';
+import { agent, mockToken, mockUsers } from '../mocks';
+import { setupBasicTests } from '../mocks/test-hooks';
+
+// Setup test hooks
+setupBasicTests();
 
 // Extend Request type to include user property
 declare module 'express' {

@@ -1,6 +1,6 @@
 import { AuthService } from '../../../src/services/auth.service';
 import { UserService } from '../../../src/services/user.service';
-import { mockUsers } from '../../utils/mocks';
+import { mockUsers } from '../../mocks/mocks';
 import { jwtUtil } from '../../../src/utils/jwt.util';
 import { StatusCodes } from 'http-status-codes';
 
