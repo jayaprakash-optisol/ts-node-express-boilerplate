@@ -2,18 +2,21 @@ import http from 'http';
 import app from './app';
 import env from './config/env.config';
 import { logger } from './utils/logger';
-import { closePool } from './config/database.config';
+import { closePool, testConnection } from './config/database.config';
 
 // Create HTTP server
 const server = http.createServer(app);
 
 // Start server
 const PORT = env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   logger.info(`✅ Server running on port ${PORT} in ${env.NODE_ENV} mode`);
   console.log(`✅ Server running on port ${PORT} in ${env.NODE_ENV} mode`);
   logger.info(`🚀 API documentation available at http://localhost:${PORT}/api-docs`);
   console.log(`🚀 API documentation available at http://localhost:${PORT}/api-docs`);
+
+  // Test database connection
+  await testConnection();
 });
 
 // Graceful shutdown handler

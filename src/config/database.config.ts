@@ -11,22 +11,28 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Test database connection
-pool
-  .connect()
-  .then(async client => {
-    logger.info('✅ PostgreSQL connected successfully');
-    client.release();
-  })
-  .catch(err => {
-    logger.error(`❌ PostgreSQL connection error: ${err.message}`);
-  });
+// Track if the pool is already closed
+let isPoolClosed = false;
 
 // Initialize Drizzle with the connection pool
 export const db = drizzle(pool);
 
+// Function to test database connection
+export const testConnection = async (): Promise<void> => {
+  try {
+    const client = await pool.connect();
+    logger.info('✅ PostgreSQL connected successfully');
+    client.release();
+  } catch (err: any) {
+    logger.error(`❌ PostgreSQL connection error: ${err.message}`);
+  }
+};
+
 // For explicitly closing the pool when the application shutdowns
 export const closePool = async (): Promise<void> => {
-  await pool.end();
-  logger.info('Database connection pool closed');
+  if (!isPoolClosed) {
+    isPoolClosed = true;
+    await pool.end();
+    logger.info('Database connection pool closed');
+  }
 };
