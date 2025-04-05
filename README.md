@@ -1,4 +1,4 @@
-A robust, enterprise-level Express TypeScript backend application for tracking and managing data leaks.
+A Robust Express TypeScript backend application.
 
 ## Features
 
@@ -240,7 +240,6 @@ docker-compose rm -f sonarqube sonar-postgres
 - `npm run format` - Format the code with Prettier
 - `npm test` - Run tests with coverage
 - `npm run migrate` - Run database migrations
-- `npm run swagger` - Generate Swagger documentation
 - `npm run sonar` - Run SonarQube analysis
 
 ## License
