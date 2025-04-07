@@ -4,6 +4,7 @@ import { ServiceResponse } from '../types';
 import { logger } from './logger';
 import { Response } from 'express';
 import { encrypt } from './encryption.util';
+import env from '../config/env.config';
 
 // Custom API error class
 export class AppError extends Error {
@@ -96,8 +97,7 @@ export const sendSuccess = <T>(
   statusCode = StatusCodes.OK,
 ): void => {
   try {
-    const encryptedData = encrypt(JSON.stringify(data));
-    logger.info('encryptedData', encryptedData);
+    const encryptedData = env?.ENCRYPTION_ENABLED ? encrypt(JSON.stringify(data)) : data;
     const response = createServiceResponse(true, encryptedData, undefined, statusCode);
     response.message = message;
     res.status(response.statusCode).json(response);
