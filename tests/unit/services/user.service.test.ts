@@ -54,7 +54,7 @@ jest.mock('../../../src/models', () => ({
 }));
 
 // Mock error utilities
-jest.mock('../../../src/utils/error.util', () => ({
+jest.mock('../../../src/utils/response.util', () => ({
   createServiceResponse: jest.fn((success, data, message, statusCode) => ({
     success,
     data,

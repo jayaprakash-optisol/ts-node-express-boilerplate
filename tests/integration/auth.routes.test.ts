@@ -5,6 +5,15 @@ import 'express';
 import { agent, mockToken, mockUsers } from '../mocks';
 import { setupBasicTests } from '../mocks/test-hooks';
 
+// Mock environment config to disable encryption
+jest.mock('../../src/config/env.config', () => ({
+  __esModule: true,
+  default: {
+    ...jest.requireActual('../../src/config/env.config').default,
+    ENCRYPTION_ENABLED: false,
+  },
+}));
+
 // Setup test hooks
 setupBasicTests();
 

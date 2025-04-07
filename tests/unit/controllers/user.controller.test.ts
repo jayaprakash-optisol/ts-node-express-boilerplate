@@ -26,6 +26,18 @@ jest.mock('../../../src/services/user.service', () => {
   };
 });
 
+// Mock the environment configuration
+jest.mock('../../../src/config/env.config', () => {
+  const originalModule = jest.requireActual('../../../src/config/env.config');
+  return {
+    __esModule: true,
+    default: {
+      ...originalModule.default,
+      ENCRYPTION_ENABLED: false,
+    },
+  };
+});
+
 // Define our own mockResponse to ensure chainable methods
 const mockResponse = () => {
   const res: any = {};
@@ -79,7 +91,10 @@ describe('UserController', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
-        ...paginatedData,
+        data: paginatedData,
+        error: undefined,
+        message: 'Operation successful',
+        statusCode: 200,
       });
     });
 
@@ -150,7 +165,10 @@ describe('UserController', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
-        ...paginatedData,
+        data: paginatedData,
+        error: undefined,
+        message: 'Operation successful',
+        statusCode: 200,
       });
     });
   });
@@ -178,6 +196,9 @@ describe('UserController', () => {
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         data: mockUsers[0],
+        error: undefined,
+        message: 'Operation successful',
+        statusCode: 200,
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -216,7 +237,13 @@ describe('UserController', () => {
 
       // Assert
       expect(mockUserService.getUserById).not.toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Invalid user ID',
+        statusCode: 400,
+      });
     });
 
     it('should handle service errors', async () => {
@@ -298,6 +325,8 @@ describe('UserController', () => {
           firstName: 'Updated',
           lastName: 'User',
         }),
+        error: undefined,
+        statusCode: 200,
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -362,11 +391,13 @@ describe('UserController', () => {
 
       // Assert
       expect(mockUserService.updateUser).not.toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Invalid user ID',
-        }),
-      );
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Invalid user ID',
+        statusCode: 400,
+      });
     });
 
     it('should handle service errors', async () => {
@@ -432,6 +463,9 @@ describe('UserController', () => {
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         message: 'User deleted successfully',
+        data: undefined,
+        error: undefined,
+        statusCode: 200,
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -487,11 +521,13 @@ describe('UserController', () => {
 
       // Assert
       expect(mockUserService.deleteUser).not.toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Invalid user ID',
-        }),
-      );
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Invalid user ID',
+        statusCode: 400,
+      });
     });
 
     it('should handle service errors', async () => {

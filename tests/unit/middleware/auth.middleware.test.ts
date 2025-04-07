@@ -16,7 +16,7 @@ jest.mock('../../../src/utils/jwt.util', () => ({
 }));
 
 // Mock AppError
-jest.mock('../../../src/utils/error.util', () => {
+jest.mock('../../../src/utils/response.util', () => {
   return {
     AppError: class MockAppError extends Error {
       statusCode: number;

@@ -14,6 +14,7 @@ jest.mock('jsonwebtoken', () => ({
 jest.mock('../../../src/utils/logger', () => ({
   logger: {
     error: jest.fn(),
+    debug: jest.fn(),
   },
 }));
 

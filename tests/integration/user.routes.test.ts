@@ -3,8 +3,16 @@ import { agent, mockUsers, mockToken } from '../mocks';
 import { UserService } from '../../src/services/user.service';
 import { Request, Response, NextFunction } from 'express';
 import { setupBasicTests } from '../mocks/test-hooks';
-
 import 'express';
+
+// Mock environment config to disable encryption
+jest.mock('../../src/config/env.config', () => ({
+  __esModule: true,
+  default: {
+    ...jest.requireActual('../../src/config/env.config').default,
+    ENCRYPTION_ENABLED: false,
+  },
+}));
 
 // Setup test hooks
 setupBasicTests();
@@ -117,8 +125,8 @@ describe('User Routes', () => {
       // Assert
       expect(response.status).toBe(StatusCodes.OK);
       expect(response.body.success).toBe(true);
-      expect(response.body).toHaveProperty('items');
-      expect(response.body.items.length).toBe(2);
+      expect(response.body.data).toHaveProperty('items');
+      expect(response.body.data.items.length).toBe(2);
       expect(userService.getAllUsers).toHaveBeenCalled();
     });
 
@@ -154,8 +162,8 @@ describe('User Routes', () => {
 
       // Assert
       expect(response.status).toBe(StatusCodes.OK);
-      expect(response.body.page).toBe(2);
-      expect(response.body.limit).toBe(1);
+      expect(response.body.data.page).toBe(2);
+      expect(response.body.data.limit).toBe(1);
       expect(userService.getAllUsers).toHaveBeenCalledWith(
         expect.objectContaining({
           page: 2,

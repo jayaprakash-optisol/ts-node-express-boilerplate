@@ -27,6 +27,18 @@ jest.mock('../../../src/services/auth.service', () => {
   };
 });
 
+// Mock the environment configuration
+jest.mock('../../../src/config/env.config', () => {
+  const originalModule = jest.requireActual('../../../src/config/env.config');
+  return {
+    __esModule: true,
+    default: {
+      ...originalModule.default,
+      ENCRYPTION_ENABLED: false,
+    },
+  };
+});
+
 describe('AuthController', () => {
   let authController: AuthController;
   let mockAuthService: any;
@@ -77,6 +89,8 @@ describe('AuthController', () => {
         success: true,
         message: 'User registered successfully',
         data: { id: 3, email: 'new@example.com', role: 'user' },
+        error: undefined,
+        statusCode: 201,
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -95,8 +109,13 @@ describe('AuthController', () => {
 
       // Assert
       expect(mockAuthService.register).not.toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
-      expect(mockNext.mock.calls[0][0].statusCode).toBe(400);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Email and password are required',
+        statusCode: 400,
+      });
     });
 
     it('should handle registration failure', async () => {
@@ -119,7 +138,13 @@ describe('AuthController', () => {
 
       // Assert
       expect(mockAuthService.register).toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Email already in use',
+        statusCode: 400,
+      });
     });
 
     it('should handle service errors', async () => {
@@ -174,6 +199,8 @@ describe('AuthController', () => {
           user: mockUsers[0],
           token: mockToken,
         },
+        error: undefined,
+        statusCode: 200,
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -189,8 +216,13 @@ describe('AuthController', () => {
 
       // Assert
       expect(mockAuthService.login).not.toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
-      expect(mockNext.mock.calls[0][0].statusCode).toBe(400);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Email and password are required',
+        statusCode: 400,
+      });
     });
 
     it('should handle login failure', async () => {
@@ -213,12 +245,13 @@ describe('AuthController', () => {
 
       // Assert
       expect(mockAuthService.login).toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(
-        expect.objectContaining({
-          statusCode: 401,
-          message: 'Invalid credentials',
-        }),
-      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Invalid credentials',
+        statusCode: 401,
+      });
     });
 
     it('should handle service errors', async () => {
@@ -259,6 +292,9 @@ describe('AuthController', () => {
           email: req.user!.email,
           role: req.user!.role,
         },
+        error: undefined,
+        message: 'Operation successful',
+        statusCode: 200,
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -272,8 +308,13 @@ describe('AuthController', () => {
       await authController.getCurrentUser(req, res, mockNext);
 
       // Assert
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
-      expect(mockNext.mock.calls[0][0].statusCode).toBe(400);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'User not authenticated',
+        statusCode: 400,
+      });
     });
 
     it('should handle errors', async () => {
@@ -314,6 +355,8 @@ describe('AuthController', () => {
         success: true,
         message: 'Token refreshed successfully',
         data: { token: mockToken },
+        error: undefined,
+        statusCode: 200,
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -328,8 +371,13 @@ describe('AuthController', () => {
 
       // Assert
       expect(mockAuthService.refreshToken).not.toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
-      expect(mockNext.mock.calls[0][0].statusCode).toBe(400);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'User not authenticated',
+        statusCode: 400,
+      });
     });
 
     it('should handle token refresh failure', async () => {
@@ -348,7 +396,13 @@ describe('AuthController', () => {
 
       // Assert
       expect(mockAuthService.refreshToken).toHaveBeenCalled();
-      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Token refresh failed',
+        statusCode: 400,
+      });
     });
 
     it('should handle service errors', async () => {

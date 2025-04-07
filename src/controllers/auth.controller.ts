@@ -35,7 +35,7 @@ export class AuthController {
         return sendError(res, result.error ?? 'Registration failed');
       }
 
-      sendSuccess(res, result.data, 'User registered successfully');
+      sendSuccess(res, result.data, 'User registered successfully', result.statusCode);
     } catch (error) {
       next(error);
     }
