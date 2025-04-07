@@ -171,6 +171,52 @@ describe('UserController', () => {
         statusCode: 200,
       });
     });
+
+    it('should handle invalid page and limit parameters', async () => {
+      // Arrange
+      const req = mockRequest();
+      const res = mockResponse();
+      req.query = { page: '0', limit: '-1' };
+
+      // Act
+      await userController.getAllUsers(req, res, mockNext);
+
+      // Assert
+      expect(mockUserService.getAllUsers).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Page and limit must be positive integers',
+        statusCode: 400,
+      });
+    });
+
+    it('should handle service failure', async () => {
+      // Arrange
+      const req = mockRequest();
+      const res = mockResponse();
+      req.query = { page: '1', limit: '10' };
+
+      mockUserService.getAllUsers.mockResolvedValue({
+        success: false,
+        error: 'Database error',
+        statusCode: 500,
+      });
+
+      // Act
+      await userController.getAllUsers(req, res, mockNext);
+
+      // Assert
+      expect(mockUserService.getAllUsers).toHaveBeenCalledWith({ page: 1, limit: 10 });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Database error',
+        statusCode: 400,
+      });
+    });
   });
 
   describe('getUserById', () => {
@@ -558,6 +604,148 @@ describe('UserController', () => {
 
       // Act
       await userController.deleteUser(req, res, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('createUser', () => {
+    it('should create user successfully', async () => {
+      // Arrange
+      const req = mockRequest();
+      const res = mockResponse();
+      req.body = {
+        email: 'test@example.com',
+        password: 'password123',
+        firstName: 'Test',
+        lastName: 'User',
+        role: 'user',
+      };
+
+      const newUser = {
+        id: 3,
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        role: 'user',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockUserService.createUser.mockResolvedValue({
+        success: true,
+        data: newUser,
+        statusCode: 201,
+        message: 'User created successfully',
+      });
+
+      // Act
+      await userController.createUser(req, res, mockNext);
+
+      // Assert
+      expect(mockUserService.createUser).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+        firstName: 'Test',
+        lastName: 'User',
+        role: 'user',
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: 'User created successfully',
+        data: newUser,
+        error: undefined,
+        statusCode: 200,
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should handle missing required fields', async () => {
+      // Arrange
+      const req = mockRequest();
+      const res = mockResponse();
+      req.body = {
+        firstName: 'Test',
+        lastName: 'User',
+        // Missing email and password
+      };
+
+      // Act
+      await userController.createUser(req, res, mockNext);
+
+      // Assert
+      expect(mockUserService.createUser).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Operation failed',
+        error: 'Email and password are required',
+        statusCode: 400,
+      });
+    });
+
+    it('should handle service errors', async () => {
+      // Arrange
+      const req = mockRequest();
+      const res = mockResponse();
+      req.body = {
+        email: 'test@example.com',
+        password: 'password123',
+        firstName: 'Test',
+        lastName: 'User',
+      };
+
+      const error = new Error('Database error');
+      mockUserService.createUser.mockRejectedValue(error);
+
+      // Act
+      await userController.createUser(req, res, mockNext);
+
+      // Assert
+      expect(mockUserService.createUser).toHaveBeenCalled();
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+
+    it('should handle duplicate email error', async () => {
+      // Arrange
+      const req = mockRequest();
+      const res = mockResponse();
+      req.body = {
+        email: 'existing@example.com',
+        password: 'password123',
+        firstName: 'Test',
+        lastName: 'User',
+      };
+
+      const error = { statusCode: 409, message: 'Email already exists' };
+      mockUserService.createUser.mockRejectedValue(error);
+
+      // Act
+      await userController.createUser(req, res, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+
+    it('should handle validation errors', async () => {
+      // Arrange
+      const req = mockRequest();
+      const res = mockResponse();
+      req.body = {
+        email: 'invalid-email',
+        password: 'short', // Too short
+        firstName: 'Test',
+        lastName: 'User',
+      };
+
+      const error = { statusCode: 400, message: 'Invalid email format' };
+      mockUserService.createUser.mockRejectedValue(error);
+
+      // Act
+      await userController.createUser(req, res, mockNext);
 
       // Assert
       expect(mockNext).toHaveBeenCalledWith(error);
