@@ -22,7 +22,7 @@ scanner(
       'sonar.projectVersion': packageJson.version,
       'sonar.projectKey': packageJson.name,
       // Add basic auth credentials if token is not available
-      ...(sonarToken === ''
+      ...(!sonarToken
         ? {
             'sonar.login': process.env.SONAR_LOGIN || 'admin',
             'sonar.password': process.env.SONAR_PASSWORD || 'admin@123',
