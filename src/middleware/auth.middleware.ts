@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
-import { AppError } from '../utils/error.util';
+import { AppError } from '../utils/response.util';
 import { jwtUtil } from '../utils/jwt.util';
 
 // Verify JWT token from Authorization header

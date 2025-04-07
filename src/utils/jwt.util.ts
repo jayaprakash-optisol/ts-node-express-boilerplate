@@ -3,7 +3,7 @@ import { JwtPayload, ServiceResponse } from '../types';
 import env from '../config/env.config';
 import { logger } from './logger';
 import { IJwtUtil } from '../types/interfaces';
-import { createServiceResponse } from './error.util';
+import { createServiceResponse } from './response.util';
 import { StatusCodes } from 'http-status-codes';
 
 /**

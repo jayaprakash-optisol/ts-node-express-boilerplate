@@ -46,6 +46,13 @@ const envSchema = z.object({
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   LOG_FILE_PATH: z.string().default('logs/app.log'),
+
+  // Encryption
+  ENCRYPTION_KEY: z.string().default('default-encryption-key-change-in-production'),
+  ENCRYPTION_ENABLED: z
+    .string()
+    .transform(val => val === 'true')
+    .default('false'),
 });
 
 // Parse and validate environment variables

@@ -3,7 +3,7 @@ import { mockRequest, mockResponse } from '../../mocks';
 import { authenticate, authorize } from '../../../src/middleware/auth.middleware';
 import { jwtUtil } from '../../../src/utils/jwt.util';
 import { setupBasicTests } from '../../mocks/test-hooks';
-import { AppError } from '../../../src/utils/error.util';
+import { AppError } from '../../../src/utils/response.util';
 
 // Setup test hooks
 setupBasicTests();

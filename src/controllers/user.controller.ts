@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { IUserService } from '../types/interfaces';
-import { createBadRequestError } from '../utils/error.util';
+import { sendSuccess, sendError } from '../utils/response.util';
 import { UserService } from '../services/user.service';
 
 export class UserController {
@@ -19,19 +19,16 @@ export class UserController {
       const limit = parseInt(req.query.limit as string, 10) || 10;
 
       if (page < 1 || limit < 1) {
-        throw createBadRequestError('Page and limit must be positive integers');
+        return sendError(res, 'Page and limit must be positive integers');
       }
 
       const result = await this.userService.getAllUsers({ page, limit });
 
       if (!result.success) {
-        throw new Error(result.error ?? 'Failed to retrieve users');
+        return sendError(res, result.error ?? 'Failed to retrieve users');
       }
 
-      res.status(result.statusCode).json({
-        success: true,
-        ...result.data,
-      });
+      sendSuccess(res, result.data);
     } catch (error) {
       next(error);
     }
@@ -45,19 +42,16 @@ export class UserController {
       const userId = parseInt(req.params.id, 10);
 
       if (isNaN(userId)) {
-        throw createBadRequestError('Invalid user ID');
+        return sendError(res, 'Invalid user ID');
       }
 
       const result = await this.userService.getUserById(userId);
 
       if (!result.success) {
-        throw new Error(result.error ?? 'Failed to retrieve user');
+        return sendError(res, result.error ?? 'Failed to retrieve user');
       }
 
-      res.status(result.statusCode).json({
-        success: true,
-        data: result.data,
-      });
+      sendSuccess(res, result.data);
     } catch (error) {
       next(error);
     }
@@ -72,7 +66,7 @@ export class UserController {
 
       // Validate required fields
       if (!email || !password) {
-        throw createBadRequestError('Email and password are required');
+        return sendError(res, 'Email and password are required');
       }
 
       const result = await this.userService.createUser({
@@ -84,14 +78,10 @@ export class UserController {
       });
 
       if (!result.success) {
-        throw new Error(result.error ?? 'Failed to create user');
+        return sendError(res, result.error ?? 'Failed to create user');
       }
 
-      res.status(result.statusCode).json({
-        success: true,
-        message: 'User created successfully',
-        data: result.data,
-      });
+      sendSuccess(res, result.data, 'User created successfully');
     } catch (error) {
       next(error);
     }
@@ -105,7 +95,7 @@ export class UserController {
       const userId = parseInt(req.params.id, 10);
 
       if (isNaN(userId)) {
-        throw createBadRequestError('Invalid user ID');
+        return sendError(res, 'Invalid user ID');
       }
 
       const { firstName, lastName, password, role, isActive } = req.body;
@@ -119,14 +109,10 @@ export class UserController {
       });
 
       if (!result.success) {
-        throw new Error(result.error ?? 'Failed to update user');
+        return sendError(res, result.error ?? 'Failed to update user');
       }
 
-      res.status(result.statusCode).json({
-        success: true,
-        message: 'User updated successfully',
-        data: result.data,
-      });
+      sendSuccess(res, result.data, 'User updated successfully');
     } catch (error) {
       next(error);
     }
@@ -140,19 +126,16 @@ export class UserController {
       const userId = parseInt(req.params.id, 10);
 
       if (isNaN(userId)) {
-        throw createBadRequestError('Invalid user ID');
+        return sendError(res, 'Invalid user ID');
       }
 
       const result = await this.userService.deleteUser(userId);
 
       if (!result.success) {
-        throw new Error(result.error ?? 'Failed to delete user');
+        return sendError(res, result.error ?? 'Failed to delete user');
       }
 
-      res.status(result.statusCode).json({
-        success: true,
-        message: 'User deleted successfully',
-      });
+      sendSuccess(res, undefined, 'User deleted successfully');
     } catch (error) {
       next(error);
     }

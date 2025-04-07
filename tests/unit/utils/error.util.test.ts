@@ -5,7 +5,7 @@ import {
   createUnauthorizedError,
   createForbiddenError,
   createInternalServerError,
-} from '../../../src/utils/error.util';
+} from '../../../src/utils/response.util';
 import { StatusCodes } from 'http-status-codes';
 
 describe('Error Utilities', () => {

@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload, NewUser, ServiceResponse, User } from '../types';
 import { IAuthService, IUserService } from '../types/interfaces';
-import { createServiceResponse } from '../utils/error.util';
+import { createServiceResponse } from '../utils/response.util';
 import { jwtUtil } from '../utils/jwt.util';
 import { UserService } from './user.service';
 

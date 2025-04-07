@@ -6,7 +6,7 @@ import { NewUser, User, ServiceResponse, PaginationParams, PaginatedResult } fro
 import { IUserService } from '../types/interfaces';
 import env from '../config/env.config';
 import { StatusCodes } from 'http-status-codes';
-import { createServiceResponse, createNotFoundError } from '../utils/error.util';
+import { createServiceResponse, createNotFoundError } from '../utils/response.util';
 
 interface ErrorWithStatusCode extends Error {
   statusCode: number;
