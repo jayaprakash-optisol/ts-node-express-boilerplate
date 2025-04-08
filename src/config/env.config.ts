@@ -42,6 +42,14 @@ const envSchema = z.object({
   REDIS_PORT: z.string().default('6379'),
   REDIS_PASSWORD: z.string().optional(),
   REDIS_URL: z.string().optional(),
+  REDIS_DB: z.string().default('0'),
+
+  // Rate Limiting
+  RATE_LIMIT_WINDOW_MS: z.string().default('60000'),
+  RATE_LIMIT_MAX: z.string().default('5'),
+  // Test Rate Limiting
+  TEST_RATE_LIMIT_WINDOW_MS: z.string().default('1000'),
+  TEST_RATE_LIMIT_MAX: z.string().default('3'),
 
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),

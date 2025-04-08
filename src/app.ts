@@ -14,6 +14,7 @@ import {
   hsts,
   cacheControl,
 } from './middleware/security.middleware';
+import { rateLimiter } from './middleware/rateLimiter.middleware';
 import { stream } from './utils/logger';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './docs/swagger';
@@ -69,14 +70,17 @@ class App {
   }
 
   private configureRoutes(): void {
+    // Apply rate limiter to API routes only
+    this.app.use(`${env.API_PREFIX}`, rateLimiter());
+
     // API routes
     this.app.use(`${env.API_PREFIX}/auth`, authRoutes);
     this.app.use(`${env.API_PREFIX}/users`, userRoutes);
 
-    // Swagger documentation
+    // Swagger documentation (no rate limiting)
     this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-    // Expose Swagger JSON
+    // Expose Swagger JSON (no rate limiting)
     this.app.get('/api-docs.json', (_req: Request, res: Response) => {
       res.setHeader('Content-Type', 'application/json');
       res.send(swaggerSpec);

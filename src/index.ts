@@ -11,9 +11,7 @@ const server = http.createServer(app);
 const PORT = env.PORT || 3000;
 server.listen(PORT, async () => {
   logger.info(`✅ Server running on port ${PORT} in ${env.NODE_ENV} mode`);
-  console.log(`✅ Server running on port ${PORT} in ${env.NODE_ENV} mode`);
   logger.info(`🚀 API documentation available at http://localhost:${PORT}/api-docs`);
-  console.log(`🚀 API documentation available at http://localhost:${PORT}/api-docs`);
 
   // Test database connection
   await testConnection();
