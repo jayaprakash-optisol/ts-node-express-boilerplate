@@ -45,6 +45,10 @@ const envSchema = z.object({
   REDIS_DB: z.string().default('0'),
 
   // Rate Limiting
+  RATE_LIMIT_ENABLED: z
+    .string()
+    .transform(val => val === 'true')
+    .default('false'),
   RATE_LIMIT_WINDOW_MS: z.string().default('60000'),
   RATE_LIMIT_MAX: z.string().default('5'),
   // Test Rate Limiting

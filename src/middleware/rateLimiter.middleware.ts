@@ -30,6 +30,11 @@ export const rateLimiter = (
   options: RateLimitOptions = getDefaultOptions(),
 ): ((req: Request, res: Response, next: NextFunction) => void) => {
   return (req: Request, res: Response, next: NextFunction) => {
+    // Check if rate limiting is enabled (it's a boolean value from env.config.ts)
+    if (env.RATE_LIMIT_ENABLED === false) {
+      return next();
+    }
+
     const key = `${options.keyPrefix}:${req.ip}`;
 
     redisClient

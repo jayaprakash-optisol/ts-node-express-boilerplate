@@ -3,6 +3,7 @@ import { rateLimiter } from '../../../src/middleware/rateLimiter.middleware';
 import redisClient from '../../../src/config/redis.config';
 import { StatusCodes } from 'http-status-codes';
 import { mockRequest, mockResponse, mockNext } from '../../mocks';
+import env from '../../../src/config/env.config';
 
 // Mock Redis client
 jest.mock('../../../src/config/redis.config', () => ({
@@ -19,6 +20,7 @@ jest.mock('../../../src/config/env.config', () => ({
   __esModule: true,
   default: {
     NODE_ENV: 'test',
+    RATE_LIMIT_ENABLED: 'true',
     RATE_LIMIT_WINDOW_MS: '60000',
     RATE_LIMIT_MAX: '100',
   },
@@ -204,6 +206,34 @@ describe('Rate Limiter Middleware', () => {
     expect(redisClient.incr).toHaveBeenCalledWith('test-rate-limit:undefined');
     expect(redisClient.pexpire).toHaveBeenCalledWith('test-rate-limit:undefined', 900000);
     expect(redisClient.pttl).toHaveBeenCalledWith('test-rate-limit:undefined');
+
+    // Verify next was called
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('should skip rate limiting when disabled', async () => {
+    // Mock environment to disable rate limiting
+    (env as any).RATE_LIMIT_ENABLED = false;
+
+    // Create middleware with custom options
+    const middleware = rateLimiter({
+      windowMs: 900000, // 15 minutes
+      max: 100,
+      keyPrefix: 'test-rate-limit',
+    });
+
+    // Call middleware and wait for it to complete
+    await new Promise<void>(resolve => {
+      middleware(req, res, () => {
+        next();
+        resolve();
+      });
+    });
+
+    // Verify Redis was not called
+    expect(redisClient.incr).not.toHaveBeenCalled();
+    expect(redisClient.pexpire).not.toHaveBeenCalled();
+    expect(redisClient.pttl).not.toHaveBeenCalled();
 
     // Verify next was called
     expect(next).toHaveBeenCalled();
