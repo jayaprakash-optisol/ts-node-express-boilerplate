@@ -35,7 +35,7 @@ export const validate =
 
         res.status(StatusCodes.BAD_REQUEST).json({
           success: false,
-          error: `Validation error: ${errorMessage}`,
+          error: `${errorMessage}`,
         });
       } else {
         next(error);

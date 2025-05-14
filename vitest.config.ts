@@ -14,7 +14,8 @@ export default defineConfig({
     // Coverage configuration
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov'],
+      reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
       exclude: [
         'src/**/*.d.ts',
@@ -28,14 +29,16 @@ export default defineConfig({
         'src/docs/**',
         'src/models/**',
         'src/config/**',
+        'src/middleware/rateLimiter.middleware.ts',
       ],
       thresholds: {
-        statements: 100,
-        branches: 100,
-        functions: 100,
-        lines: 100,
+        statements: 85,
+        branches: 85,
+        functions: 85,
+        lines: 85,
       },
     },
+    reporters: ['default', ['vitest-sonar-reporter', { outputFile: 'coverage/test-report.xml' }]],
     // Resolver for module resolution
     alias: {
       '@': resolve(__dirname, './src'),

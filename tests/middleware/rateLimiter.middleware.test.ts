@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { type NextFunction, type Request, type Response } from 'express';
-import { StatusCodes } from 'http-status-codes';
+import { type Request, type Response } from 'express';
 
 // Mock dependencies - must be before importing the modules
 vi.mock('../../src/config/redis.config', () => {

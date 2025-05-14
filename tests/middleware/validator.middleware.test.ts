@@ -114,7 +114,7 @@ describe('Validator Middleware', () => {
       expect(statusSpy).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
       expect(jsonSpy).toHaveBeenCalledWith({
         success: false,
-        error: expect.stringContaining('Validation error'),
+        error: expect.stringContaining('email'),
       });
       expect(logger.warn).toHaveBeenCalled();
     });
