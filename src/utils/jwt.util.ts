@@ -1,10 +1,11 @@
-import jwt, { SignOptions } from 'jsonwebtoken';
-import { JwtPayload, ServiceResponse } from '../types';
-import env from '../config/env.config';
-import { logger } from './logger';
-import { IJwtUtil } from '../types/interfaces';
-import { createServiceResponse } from './response.util';
 import { StatusCodes } from 'http-status-codes';
+import jwt, { type SignOptions } from 'jsonwebtoken';
+
+import env from '../config/env.config';
+import { type IJwtUtil, type JwtPayload, type ServiceResponse } from '../types';
+
+import { logger } from './logger';
+import { createServiceResponse } from './response.util';
 
 /**
  * JWT utility functions for token generation and verification
@@ -52,7 +53,7 @@ export class JwtUtil implements IJwtUtil {
       const emptyPayload: JwtPayload = { userId: 0, email: '', role: '' };
 
       // Handle specific token errors
-      if ((error as any)?.name === 'TokenExpiredError') {
+      if ((error as Error)?.name === 'TokenExpiredError') {
         return createServiceResponse(
           false,
           emptyPayload,

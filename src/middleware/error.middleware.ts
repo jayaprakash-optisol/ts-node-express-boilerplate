@@ -1,8 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { type NextFunction, type Request, type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import { logger } from '../utils/logger';
+
 import env from '../config/env.config';
-import { AuthRequest } from '../types';
+import { type AuthRequest } from '../types';
+import { logger } from '../utils/logger';
 
 // Define user interface for request
 type RequestWithUser = AuthRequest;
@@ -76,7 +77,7 @@ export const errorHandler = (
   err: Error | ErrorWithStatusCode,
   req: RequestWithUser,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   _next: NextFunction,
 ): void => {
   let error = err as ErrorWithStatusCode;

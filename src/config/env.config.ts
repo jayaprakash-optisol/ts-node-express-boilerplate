@@ -12,7 +12,15 @@ const envSchema = z.object({
   API_PREFIX: z.string().default('/api/v1'),
 
   // Database
-  DATABASE_URL: z.string(),
+  DB_NAME: z.string(),
+  DB_USER: z.string(),
+  DB_PASSWORD: z.string(),
+  DB_HOST: z.string(),
+  DB_PORT: z.string(),
+  DB_SSL_ENABLED: z
+    .string()
+    .transform(val => val === 'true')
+    .default('false'),
 
   // JWT
   JWT_SECRET: z.string(),
@@ -68,6 +76,16 @@ const envSchema = z.object({
 });
 
 // Parse and validate environment variables
-const env = envSchema.parse(process.env);
+let parsedEnv;
 
+try {
+  parsedEnv = envSchema.parse(process.env);
+  console.info('Environment variables parsed successfully');
+} catch (error) {
+  console.error('Error parsing environment variables:', error);
+  process.exit(1);
+}
+
+// Export the validated environment variables
+const env = parsedEnv;
 export default env;

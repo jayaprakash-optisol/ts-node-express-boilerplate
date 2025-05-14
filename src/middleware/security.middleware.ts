@@ -1,5 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
-import env from '../config/env.config';
+import { type NextFunction, type Request, type Response } from 'express';
 
 const CSP_POLICY =
   "default-src 'self'; script-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'";
@@ -13,22 +12,10 @@ export const corsOptions = {
     origin: string | undefined,
     callback: (err: Error | null, allow?: boolean) => void,
   ): void => {
-    // In production, only allow specific origins
-    if (env.NODE_ENV === 'production') {
-      const allowedOrigins = ['*'];
-
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    } else {
-      // In development, allow all origins
-      callback(null, true);
-    }
+    callback(null, true);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   credentials: true,
   maxAge: 86400, // 24 hours
 };

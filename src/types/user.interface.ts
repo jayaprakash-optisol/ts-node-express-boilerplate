@@ -1,11 +1,14 @@
+import { type users } from '../models';
+
 import {
-  User,
-  NewUser,
-  ServiceResponse,
-  PaginationParams,
-  PaginatedResult,
-  JwtPayload,
-} from './index';
+  type PaginatedResult,
+  type PaginationParams,
+  type ServiceResponse,
+} from './common.interface';
+
+// Database model types
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 
 /**
  * User service interface
@@ -52,46 +55,4 @@ export interface IUserService {
    * Verify user password
    */
   verifyPassword(email: string, password: string): Promise<ServiceResponse<User>>;
-}
-
-/**
- * Auth service interface
- */
-export interface IAuthService {
-  /**
-   * Register a new user
-   */
-  register(
-    userData: Omit<NewUser, 'id' | 'createdAt' | 'updatedAt'>,
-  ): Promise<ServiceResponse<Omit<User, 'password'>>>;
-
-  /**
-   * Login user
-   */
-  login(email: string, password: string): Promise<ServiceResponse<{ user: User; token: string }>>;
-
-  /**
-   * Refresh token
-   */
-  refreshToken(userId: number): Promise<ServiceResponse<{ token: string }>>;
-}
-
-/**
- * JWT utility interface
- */
-export interface IJwtUtil {
-  /**
-   * Generate a JWT token
-   */
-  generateToken(payload: JwtPayload): string;
-
-  /**
-   * Verify a JWT token
-   */
-  verifyToken(token: string): ServiceResponse<JwtPayload>;
-
-  /**
-   * Decode a JWT token without verification
-   */
-  decodeToken(token: string): JwtPayload | null;
 }

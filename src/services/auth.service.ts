@@ -1,8 +1,16 @@
 import { StatusCodes } from 'http-status-codes';
-import { JwtPayload, NewUser, ServiceResponse, User } from '../types';
-import { IAuthService, IUserService } from '../types/interfaces';
-import { createServiceResponse } from '../utils/response.util';
+
+import {
+  type IAuthService,
+  type IUserService,
+  type JwtPayload,
+  type NewUser,
+  type ServiceResponse,
+  type User,
+} from '../types';
 import { jwtUtil } from '../utils/jwt.util';
+import { _error, _ok } from '../utils/response.util';
+
 import { UserService } from './user.service';
 
 export class AuthService implements IAuthService {
@@ -34,25 +42,15 @@ export class AuthService implements IAuthService {
       const existingUserResult = await this.userService.getUserByEmail(userData.email);
 
       if (existingUserResult.success && existingUserResult.data) {
-        return createServiceResponse<Omit<User, 'password'>>(
-          false,
-          undefined,
-          'Email already in use',
-          StatusCodes.BAD_REQUEST,
-        );
+        return _error('Email already in use', StatusCodes.BAD_REQUEST);
       }
 
       // Create new user
       const result = await this.userService.createUser(userData);
       const { password: _password, ...userWithoutPassword } = result.data!;
-      return createServiceResponse(true, userWithoutPassword, undefined, result.statusCode);
+      return _ok(userWithoutPassword, 'User registered successfully', result.statusCode);
     } catch (error) {
-      return createServiceResponse<Omit<User, 'password'>>(
-        false,
-        undefined,
-        (error as Error).message,
-        StatusCodes.INTERNAL_SERVER_ERROR,
-      );
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -68,28 +66,21 @@ export class AuthService implements IAuthService {
       const verifyResult = await this.userService.verifyPassword(email, password);
 
       if (!verifyResult.success || !verifyResult.data) {
-        return createServiceResponse<{ user: User; token: string }>(
-          false,
-          undefined,
-          'Invalid credentials',
-          StatusCodes.UNAUTHORIZED,
-        );
+        return _error('Invalid credentials', StatusCodes.UNAUTHORIZED);
       }
 
       // Generate JWT token
       const token = this.generateToken(verifyResult.data);
 
-      return createServiceResponse(true, {
-        user: verifyResult.data,
-        token,
-      });
-    } catch (error) {
-      return createServiceResponse<{ user: User; token: string }>(
-        false,
-        undefined,
-        (error as Error).message,
-        StatusCodes.INTERNAL_SERVER_ERROR,
+      return _ok(
+        {
+          user: verifyResult.data,
+          token,
+        },
+        'Login successful',
       );
+    } catch (error) {
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -115,25 +106,15 @@ export class AuthService implements IAuthService {
       const userResult = await this.userService.getUserById(userId);
 
       if (!userResult.success || !userResult.data) {
-        return createServiceResponse<{ token: string }>(
-          false,
-          undefined,
-          'User not found',
-          StatusCodes.NOT_FOUND,
-        );
+        return _error('User not found', StatusCodes.NOT_FOUND);
       }
 
       // Generate new token
       const token = this.generateToken(userResult.data);
 
-      return createServiceResponse(true, { token });
+      return _ok({ token }, 'Token refreshed successfully');
     } catch (error) {
-      return createServiceResponse<{ token: string }>(
-        false,
-        undefined,
-        (error as Error).message,
-        StatusCodes.INTERNAL_SERVER_ERROR,
-      );
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 }

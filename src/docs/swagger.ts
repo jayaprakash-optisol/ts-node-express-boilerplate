@@ -1,4 +1,5 @@
 import swaggerJSDoc from 'swagger-jsdoc';
+
 import { version } from '../../package.json';
 import env from '../config/env.config';
 

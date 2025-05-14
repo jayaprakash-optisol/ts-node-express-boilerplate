@@ -1,8 +1,9 @@
-import { users } from '../../models/users.schema';
 import bcrypt from 'bcrypt';
-import { logger } from '../../utils/logger';
-import env from '../../config/env.config';
+
 import { db } from '../../config/database.config';
+import env from '../../config/env.config';
+import { users } from '../../models/users.schema';
+import { logger } from '../../utils/logger';
 
 // Hash password function
 const hashPassword = async (password: string): Promise<string> => {

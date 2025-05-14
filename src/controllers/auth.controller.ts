@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuthRequest } from '../types';
-import { IAuthService } from '../types/interfaces';
-import { sendSuccess, sendError } from '../utils/response.util';
-import { AuthService } from '../services/auth.service';
+import { type NextFunction, type Request, type Response } from 'express';
+
+import { AuthService } from '../services';
+import { type AuthRequest, type IAuthService } from '../types';
+import { sendError, sendSuccess } from '../utils/response.util';
 
 export class AuthController {
   private readonly authService: IAuthService;

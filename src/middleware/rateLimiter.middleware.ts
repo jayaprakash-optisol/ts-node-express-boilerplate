@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import redisClient from '../config/redis.config';
+import { type NextFunction, type Request, type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
+
 import env from '../config/env.config';
+import { getRedisClient } from '../config/redis.config';
 
 interface RateLimitOptions {
   windowMs: number; // Time window in milliseconds
@@ -36,15 +37,16 @@ export const rateLimiter = (
     }
 
     const key = `${options.keyPrefix}:${req.ip}`;
+    const redis = getRedisClient();
 
-    redisClient
+    redis
       .incr(key)
       .then(current => {
         if (current === 1) {
-          redisClient.pexpire(key, options.windowMs);
+          redis.pexpire(key, options.windowMs);
         }
 
-        return redisClient.pttl(key).then(ttl => {
+        return redis.pttl(key).then(ttl => {
           res.setHeader('X-RateLimit-Limit', options.max);
           res.setHeader('X-RateLimit-Remaining', Math.max(0, options.max - current));
           res.setHeader('X-RateLimit-Reset', Math.ceil(ttl / 1000));

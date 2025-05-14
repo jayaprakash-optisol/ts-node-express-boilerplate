@@ -1,4 +1,5 @@
 import { Router } from 'express';
+
 import { UserController } from '../controllers/user.controller';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validateRegisterUser, validateUpdateUser } from '../validators/user.validator';

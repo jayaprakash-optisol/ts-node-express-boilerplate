@@ -6,9 +6,14 @@ dotenv.config();
 export default {
   schema: './src/models',
   out: './src/database/migrations',
-  driver: 'pg',
+  dialect: 'postgresql',
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL || '',
+    host: String(process.env.DB_HOST),
+    user: String(process.env.DB_USER),
+    password: String(process.env.DB_PASSWORD),
+    database: String(process.env.DB_NAME),
+    port: parseInt(String(process.env.DB_PORT)),
+    ssl: false,
   },
   verbose: true,
   strict: false,

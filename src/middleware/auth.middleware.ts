@@ -1,7 +1,8 @@
-import { Response, NextFunction } from 'express';
-import { AuthRequest } from '../types';
-import { AppError } from '../utils/response.util';
+import { type NextFunction, type Response } from 'express';
+
+import { type AuthRequest } from '../types';
 import { jwtUtil } from '../utils/jwt.util';
+import { AppError } from '../utils/response.util';
 
 // Verify JWT token from Authorization header
 export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
@@ -24,7 +25,7 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
       role: decoded.data.role,
     };
     next();
-  } catch (error) {
+  } catch {
     next(new AppError('Invalid token', 401));
   }
 };

@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import { IUserService } from '../types/interfaces';
-import { sendSuccess, sendError } from '../utils/response.util';
-import { UserService } from '../services/user.service';
+import { type NextFunction, type Request, type Response } from 'express';
+
+import { UserService } from '../services';
+import { type IUserService } from '../types';
+import { sendError, sendSuccess } from '../utils/response.util';
 
 export class UserController {
   private readonly userService: IUserService;

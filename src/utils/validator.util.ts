@@ -1,6 +1,7 @@
-import { ZodError, ZodSchema } from 'zod';
-import { Request, Response, NextFunction } from 'express';
+import { type NextFunction, type Request, type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import { ZodError, type ZodSchema } from 'zod';
+
 import { logger } from './logger';
 
 interface RequestWithUser extends Request {

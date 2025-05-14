@@ -1,16 +1,19 @@
 import bcrypt from 'bcrypt';
 import { eq, getTableColumns } from 'drizzle-orm';
-import { db } from '../config/database.config';
-import { users } from '../models';
-import { NewUser, User, ServiceResponse, PaginationParams, PaginatedResult } from '../types';
-import { IUserService } from '../types/interfaces';
-import env from '../config/env.config';
 import { StatusCodes } from 'http-status-codes';
-import { createServiceResponse, createNotFoundError } from '../utils/response.util';
 
-interface ErrorWithStatusCode extends Error {
-  statusCode: number;
-}
+import { db } from '../config/database.config';
+import env from '../config/env.config';
+import { users } from '../models';
+import {
+  type IUserService,
+  type NewUser,
+  type PaginatedResult,
+  type PaginationParams,
+  type ServiceResponse,
+  type User,
+} from '../types';
+import { _error, _ok, createNotFoundError, createUnauthorizedError } from '../utils/response.util';
 
 export class UserService implements IUserService {
   private static instance: UserService;
@@ -53,14 +56,9 @@ export class UserService implements IUserService {
         throw new Error('Failed to create user');
       }
 
-      return createServiceResponse(true, result[0], undefined, StatusCodes.CREATED);
+      return _ok(result[0], 'User created successfully', StatusCodes.CREATED);
     } catch (error) {
-      return createServiceResponse<User>(
-        false,
-        undefined,
-        (error as Error).message,
-        StatusCodes.BAD_REQUEST,
-      );
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -75,14 +73,9 @@ export class UserService implements IUserService {
         throw createNotFoundError(`User with ID ${userId} not found`);
       }
 
-      return createServiceResponse(true, result[0]);
+      return _ok(result[0], 'User found');
     } catch (error) {
-      const statusCode =
-        error instanceof Error && 'statusCode' in error
-          ? (error as ErrorWithStatusCode).statusCode
-          : StatusCodes.INTERNAL_SERVER_ERROR;
-
-      return createServiceResponse<User>(false, undefined, (error as Error).message, statusCode);
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -97,14 +90,9 @@ export class UserService implements IUserService {
         throw createNotFoundError(`User with email ${email} not found`);
       }
 
-      return createServiceResponse(true, result[0]);
+      return _ok(result[0], 'User found');
     } catch (error) {
-      const statusCode =
-        error instanceof Error && 'statusCode' in error
-          ? (error as ErrorWithStatusCode).statusCode
-          : StatusCodes.INTERNAL_SERVER_ERROR;
-
-      return createServiceResponse<User>(false, undefined, (error as Error).message, statusCode);
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -137,14 +125,9 @@ export class UserService implements IUserService {
         totalPages,
       };
 
-      return createServiceResponse(true, paginatedResult);
+      return _ok(paginatedResult, 'Users retrieved successfully');
     } catch (error) {
-      return createServiceResponse<PaginatedResult<Omit<User, 'password'>>>(
-        false,
-        undefined,
-        (error as Error).message,
-        StatusCodes.INTERNAL_SERVER_ERROR,
-      );
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -180,14 +163,9 @@ export class UserService implements IUserService {
         .where(eq(users.id, userId))
         .returning();
 
-      return createServiceResponse(true, result[0]);
+      return _ok(result[0], 'User updated successfully');
     } catch (error) {
-      const statusCode =
-        error instanceof Error && 'statusCode' in error
-          ? (error as ErrorWithStatusCode).statusCode
-          : StatusCodes.INTERNAL_SERVER_ERROR;
-
-      return createServiceResponse<User>(false, undefined, (error as Error).message, statusCode);
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -206,14 +184,9 @@ export class UserService implements IUserService {
       // Delete user
       await db.delete(users).where(eq(users.id, userId));
 
-      return createServiceResponse<void>(true, undefined, undefined, StatusCodes.NO_CONTENT);
+      return _ok(undefined, 'User deleted successfully', StatusCodes.NO_CONTENT);
     } catch (error) {
-      const statusCode =
-        error instanceof Error && 'statusCode' in error
-          ? (error as ErrorWithStatusCode).statusCode
-          : StatusCodes.INTERNAL_SERVER_ERROR;
-
-      return createServiceResponse<void>(false, undefined, (error as Error).message, statusCode);
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -226,34 +199,19 @@ export class UserService implements IUserService {
       const userResult = await this.getUserByEmail(email);
 
       if (!userResult.success || !userResult.data) {
-        return createServiceResponse<User>(
-          false,
-          undefined,
-          'Invalid credentials',
-          StatusCodes.UNAUTHORIZED,
-        );
+        throw createUnauthorizedError('Invalid Email');
       }
 
       // Verify password
       const isPasswordValid = await bcrypt.compare(password, userResult.data.password);
 
       if (!isPasswordValid) {
-        return createServiceResponse<User>(
-          false,
-          undefined,
-          'Invalid credentials',
-          StatusCodes.UNAUTHORIZED,
-        );
+        throw createUnauthorizedError('Invalid Password');
       }
 
-      return createServiceResponse<User>(true, userResult.data);
+      return _ok(userResult.data, 'Password verified successfully');
     } catch (error) {
-      return createServiceResponse<User>(
-        false,
-        undefined,
-        (error as Error).message,
-        StatusCodes.INTERNAL_SERVER_ERROR,
-      );
+      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
 }

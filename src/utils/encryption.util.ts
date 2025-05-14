@@ -1,6 +1,8 @@
 import crypto from 'crypto';
-import { logger } from './logger';
+
 import env from '../config/env.config';
+
+import { logger } from './logger';
 
 // Encryption algorithm
 const ALGORITHM = 'aes-256-gcm';

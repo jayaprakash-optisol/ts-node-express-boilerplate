@@ -1,54 +1,153 @@
 import http from 'http';
-import app from './app';
+import path from 'path';
+
+import compression from 'compression';
+import cors from 'cors';
+import express, { type Application, type Request, type Response } from 'express';
+import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
+import morgan from 'morgan';
+
+import { closePool, initDatabaseConnection } from './config/database.config';
 import env from './config/env.config';
-import { logger } from './utils/logger';
-import { closePool, testConnection } from './config/database.config';
+import { initRedisClient } from './config/redis.config';
+import swaggerSpec from './docs/swagger';
+import {
+  cacheControl,
+  contentSecurityPolicy,
+  corsOptions,
+  frameGuard,
+  hsts,
+  noSniff,
+  rateLimiter,
+  xssFilter,
+} from './middleware';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware';
+import routes from './routes';
+import { closeRedisConnections } from './utils/redis.util';
+import { logger, updateLoggerConfig, stream } from './utils';
 
-// Create HTTP server
-const server = http.createServer(app);
+// Create Express application
+export const app: Application = express();
 
-// Start server
-const PORT = env.PORT || 3000;
-server.listen(PORT, async () => {
-  logger.info(`✅ Server running on port ${PORT} in ${env.NODE_ENV} mode`);
-  logger.info(`🚀 API documentation available at http://localhost:${PORT}/api-docs`);
+export async function configureApp(): Promise<void> {
+  // Custom HTTP request logging middleware
 
-  // Test database connection
-  await testConnection();
-});
+  // Update logger with loaded environment config
+  updateLoggerConfig(env.LOG_LEVEL, env.LOG_FILE_PATH);
 
-// Graceful shutdown handler
-const shutdown = async (signal: string): Promise<void> => {
-  logger.info(`${signal} received. Starting graceful shutdown...`);
+  // Initialize database with loaded environment variables
+  await initDatabaseConnection();
 
-  server.close(() => {
-    logger.info('HTTP server closed');
+  // Initialize Redis client
+  initRedisClient();
+
+  // Security middleware
+  app.use(helmet());
+
+  // CORS with custom options
+  app.use(cors(corsOptions));
+
+  // Additional security headers
+  app.use(contentSecurityPolicy);
+  app.use(noSniff);
+  app.use(xssFilter);
+  app.use(frameGuard);
+  app.use(hsts);
+  app.use(cacheControl);
+
+  // Request parsing
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+  // Compression
+  app.use(compression());
+
+  // Logging
+  if (env.NODE_ENV === 'production') {
+    app.use(morgan('combined', { stream }));
+  } else {
+    // Simple, clean log format for development
+    app.use(
+      morgan(':method :url :status :response-time[0]ms', {
+        stream,
+        skip: req => req.url === '/health',
+      }),
+    );
+  }
+
+  // Apply rate limiter to API routes
+  app.use(`${env.API_PREFIX}`, rateLimiter());
+
+  // Configure web API routes with versioning
+  app.use(env.API_PREFIX, routes);
+
+  // Health check endpoint (no rate limiting)
+  app.get('/health', (_req: Request, res: Response) => {
+    res.status(200).json({ status: 'OK' });
   });
 
+  // Swagger documentation (no rate limiting)
+  app.use(`/api-docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+  // Serve static files from the correct public directory
+  app.use(express.static(path.resolve(__dirname, '../public')));
+
+  // Serve .well-known directory with correct content type
+  app.use(
+    '/.well-known',
+    express.static(path.resolve(__dirname, '../.well-known'), {
+      setHeaders: (res, path) => {
+        if (path.endsWith('apple-app-site-association')) {
+          res.setHeader('Content-Type', 'application/json');
+        }
+      },
+    }),
+  );
+
+  // Expose Swagger JSON (no rate limiting)
+  app.get(`/api-docs.json`, (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+
+  // 404 handler
+  app.use(notFoundHandler);
+
+  // Error handler
+  app.use(errorHandler);
+}
+
+async function startServer(): Promise<void> {
   try {
-    // Close database connections
-    await closePool();
-    logger.info('Database connections closed');
-    logger.info('Graceful shutdown completed');
-    process.exit(0);
+    await configureApp();
+    const server = http.createServer(app);
+
+    server.listen(env.PORT, () => {
+      logger.info(`✅ Server is running on port ${env.PORT}`);
+      logger.info(`✅ API Documentation available at http://localhost:${env.PORT}/api-docs`);
+    });
+
+    // Handle graceful shutdown
+    process.on('SIGTERM', async () => {
+      logger.info('SIGTERM received. Shutting down gracefully...');
+      await closePool();
+      await closeRedisConnections();
+      server.close(() => {
+        logger.info('Server closed');
+        process.exit(0);
+      });
+    });
   } catch (error) {
-    logger.error('Error during shutdown:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
-};
+}
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason: Error) => {
-  logger.error('❌ Unhandled Rejection:', reason);
-  shutdown('Unhandled Rejection');
-});
+// Export startServer function for programmatic usage
+export { startServer };
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (error: Error) => {
-  logger.error('❌ Uncaught Exception:', error);
-  shutdown('Uncaught Exception');
-});
-
-// Listen for termination signals
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+// Start server only if this file is run directly (not when imported as a module)
+if (require.main === module) {
+  startServer();
+}

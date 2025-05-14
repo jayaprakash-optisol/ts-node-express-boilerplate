@@ -14,6 +14,6 @@
     "isolatedModules": true,
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "tests/**/*", "*.ts", "*.mjs", "*.cjs", "*.js"],
+  "exclude": ["node_modules", "dist", "tests/**/*"]
 }

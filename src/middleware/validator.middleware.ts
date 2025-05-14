@@ -1,6 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { type NextFunction, type Request, type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import { type AnyZodObject, ZodError } from 'zod';
+
 import { logger } from '../utils/logger';
 
 /**

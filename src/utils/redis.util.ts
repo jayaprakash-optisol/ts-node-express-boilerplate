@@ -1,5 +1,7 @@
-import { Redis, RedisOptions } from 'ioredis';
+import { Redis, type RedisOptions } from 'ioredis';
+
 import env from '../config/env.config';
+
 import { logger } from './logger';
 
 // Keep track of all Redis clients
