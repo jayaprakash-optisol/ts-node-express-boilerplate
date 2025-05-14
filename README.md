@@ -14,7 +14,8 @@ A Robust Express TypeScript backend application.
 - **Security** with Helmet and additional security middleware
 - **Health check endpoints** for monitoring
 - **Docker support** for easy deployment
-- **Testing setup** with Jest
+- **Testing setup** with Vitest
+- **Code quality analysis** with SonarQube
 
 ## Tech Stack
 
@@ -28,8 +29,7 @@ A Robust Express TypeScript backend application.
 - **Helmet** - Security best practices
 - **Winston & Morgan** - Logging
 - **Swagger** - API documentation
-- **Nodemailer** - Email service
-- **Jest** - Testing
+- **Vitest** - Fast and efficient testing
 - **Docker & Docker Compose** - Containerization
 
 ## Project Structure
@@ -141,17 +141,17 @@ http://localhost:3000/api-docs
   ```
   npm test
   ```
-- Run unit tests:
+- Run tests with coverage:
   ```
-  npm run test:unit
-  ```
-- Run integration tests:
-  ```
-  npm run test:integration
+  npm run test:coverage
   ```
 - Run tests in watch mode:
   ```
   npm run test:watch
+  ```
+- Run tests and SonarQube analysis:
+  ```
+  npm run test:sonar
   ```
 
 ## Code Quality with SonarQube
@@ -180,56 +180,52 @@ This project includes SonarQube integration for code quality and coverage analys
 
 5. Add the token to your .env file:
    ```
-   SONAR_TOKEN=your_generated_token
+   SONAR_LOGIN=your_generated_token
    SONAR_SERVER_URL=http://localhost:9000
    ```
 
 ### Run Code Analysis
 
-1. Run tests with coverage:
+1. Run the combined test coverage and SonarQube analysis:
 
    ```
-   npm test
+   npm run test:sonar
    ```
 
-2. Run SonarQube analysis:
+   This will:
 
-   ```
-   npm run sonar
-   ```
+   - Run tests with coverage using Vitest
+   - Generate coverage reports in multiple formats (LCOV, HTML, JSON)
+   - Generate a SonarQube-compatible test execution report
+   - Run the SonarQube scanner to upload results
 
-3. View the results in the SonarQube dashboard at http://localhost:9000
+2. View the results in the SonarQube dashboard at http://localhost:9000
 
-### Troubleshooting
+### Configuration Files
 
-- If SonarQube fails to start, try:
+- **vitest.config.ts**: Configures Vitest testing setup, coverage thresholds, and reporters
+- **sonar-scanner.ts**: Configures SonarQube scanner with project details and coverage paths
+
+### Advanced Testing Options
+
+For more granular control over testing and reporting:
+
+- To run a specific test file:
 
   ```
-  docker-compose down
-  docker-compose up -d sonar-postgres
-  docker-compose up -d sonarqube
+  npx vitest run path/to/test/file.test.ts
   ```
 
-- If you encounter memory errors, increase Docker memory limits in Docker Desktop settings
+- To run tests with specific tag:
 
-- To check container logs:
   ```
-  docker logs sonarqube
+  npx vitest run --mode="tag"
   ```
 
-### Stopping SonarQube
-
-When you're done with SonarQube, you can stop it:
-
-```
-docker-compose stop sonarqube sonar-postgres
-```
-
-To remove the containers:
-
-```
-docker-compose rm -f sonarqube sonar-postgres
-```
+- To view coverage in the browser:
+  ```
+  npx vitest --coverage --ui
+  ```
 
 ## Available Scripts
 
@@ -238,9 +234,15 @@ docker-compose rm -f sonarqube sonar-postgres
 - `npm run build` - Build the TypeScript code
 - `npm run lint` - Lint the code
 - `npm run format` - Format the code with Prettier
-- `npm test` - Run tests with coverage
-- `npm run migrate` - Run database migrations
-- `npm run sonar` - Run SonarQube analysis
+- `npm test` - Run tests
+- `npm run test:coverage` - Run tests with coverage
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:sonar` - Run tests with coverage and SonarQube analysis
+- `npm run sonar` - Run SonarQube analysis only
+- `npm run seed` - Seed the database
+- `npm run db:generate` - Generate Drizzle migrations
+- `npm run db:push` - Push Drizzle migrations
+- `npm run db:drop` - Drop database tables
 
 ## License
 
