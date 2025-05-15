@@ -1,6 +1,6 @@
 import { type NextFunction, type Request, type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import { type AnyZodObject, ZodError } from 'zod';
+import { ZodError, type ZodSchema } from 'zod';
 
 import { logger } from '../utils/logger';
 
@@ -10,7 +10,7 @@ import { logger } from '../utils/logger';
  * @param source Where to look for data to validate (body, query, params)
  */
 export const validate =
-  (schema: AnyZodObject, source: 'body' | 'query' | 'params' = 'body') =>
+  (schema: ZodSchema, source: 'body' | 'query' | 'params' = 'body') =>
   (req: Request, res: Response, next: NextFunction): void => {
     try {
       // Get data from the specified source

@@ -14,11 +14,15 @@ import {
   type User,
 } from '../types';
 import { _error, _ok, createNotFoundError, createUnauthorizedError } from '../utils/response.util';
+import { CacheService } from './cache.service';
 
 export class UserService implements IUserService {
   private static instance: UserService;
+  private readonly cacheService: CacheService;
 
-  private constructor() {}
+  private constructor() {
+    this.cacheService = CacheService.getInstance();
+  }
 
   /**
    * Get singleton instance
