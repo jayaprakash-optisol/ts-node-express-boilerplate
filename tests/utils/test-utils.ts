@@ -53,48 +53,75 @@ export function assertResponse(
   }
 }
 
+// Helper function to create test case with two primary factors
+function createTestCaseWithTwoFactors(
+  factorNames: string[],
+  factorValues: any[][],
+  val1: any,
+  val2: any,
+): Record<string, any> {
+  const testCase: Record<string, any> = {};
+  testCase[factorNames[0]] = val1;
+  testCase[factorNames[1]] = val2;
+
+  // Set remaining factors to first value
+  for (let i = 2; i < factorNames.length; i++) {
+    testCase[factorNames[i]] = factorValues[i][0];
+  }
+
+  return testCase;
+}
+
+// Helper function to create test case with additional factors
+function createTestCaseWithAdditionalFactor(
+  factorNames: string[],
+  factorValues: any[][],
+  factorIndex: number,
+  valueIndex: number,
+  factor1Values: any[],
+): Record<string, any> {
+  const testCase: Record<string, any> = {};
+  testCase[factorNames[0]] = factor1Values[valueIndex % factor1Values.length];
+  testCase[factorNames[factorIndex]] = factorValues[factorIndex][valueIndex];
+
+  // Set other factors to first value
+  for (let k = 1; k < factorNames.length; k++) {
+    if (k !== factorIndex) {
+      testCase[factorNames[k]] = factorValues[k][0];
+    }
+  }
+
+  return testCase;
+}
+
 // Helper to create orthogonal array test data
 export function generateOrthogonalTestCases<T>(factors: Record<string, any[]>): T[] {
   const factorNames = Object.keys(factors);
   const factorValues = Object.values(factors);
-
-  // For simplicity, we're using a pairwise approach:
-  // Ensure each pair of factor values appears at least once
   const testCases: T[] = [];
 
-  // Start with all combinations of first two factors
+  // Generate combinations of first two factors
   const factor1Values = factorValues[0];
   const factor2Values = factorValues[1];
 
+  // Add test cases for first two factors
   for (const val1 of factor1Values) {
     for (const val2 of factor2Values) {
-      const testCase: Record<string, any> = {};
-      testCase[factorNames[0]] = val1;
-      testCase[factorNames[1]] = val2;
-
-      // Set remaining factors to first value
-      for (let i = 2; i < factorNames.length; i++) {
-        testCase[factorNames[i]] = factorValues[i][0];
-      }
-
+      const testCase = createTestCaseWithTwoFactors(factorNames, factorValues, val1, val2);
       testCases.push(testCase as T);
     }
   }
 
-  // Handle the remaining factors pairwise with the first factor
+  // Add test cases for additional factors
   for (let i = 2; i < factorNames.length; i++) {
     for (let j = 1; j < factorValues[i].length; j++) {
-      const testCase: Record<string, any> = {};
-      testCase[factorNames[0]] = factor1Values[j % factor1Values.length];
-      testCase[factorNames[i]] = factorValues[i][j];
-
-      // Set other factors to first value
-      for (let k = 1; k < factorNames.length; k++) {
-        if (k !== i) {
-          testCase[factorNames[k]] = factorValues[k][0];
-        }
-      }
-
+      const testCase = createTestCaseWithAdditionalFactor(
+        factorNames,
+        factorValues,
+        i,
+        j,
+        factor1Values,
+      );
       testCases.push(testCase as T);
     }
   }
