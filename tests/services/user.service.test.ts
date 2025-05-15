@@ -6,7 +6,7 @@ import { mockUsers, mockNewUser } from '../mocks/data';
 vi.mock('bcrypt', () => ({
   default: {
     hash: vi.fn().mockImplementation(password => Promise.resolve(`hashed_${password}`)),
-    compare: vi.fn().mockImplementation(() => Promise.resolve(true)),
+    compare: vi.fn(() => Promise.resolve(true)),
   },
 }));
 
@@ -305,7 +305,7 @@ describe('UserService', () => {
   describe('verifyPassword', () => {
     it('should verify password successfully', async () => {
       // Explicitly set up bcrypt mock for this test
-      vi.mocked(bcrypt.compare).mockResolvedValueOnce(true);
+      vi.mocked(bcrypt.compare).mockImplementation(() => Promise.resolve(true));
 
       // Spy on getUserByEmail
       const getUserByEmailSpy = vi.spyOn(userService, 'getUserByEmail');
@@ -344,7 +344,7 @@ describe('UserService', () => {
 
     it('should return error for invalid password', async () => {
       // Set up bcrypt to return false for this test
-      vi.mocked(bcrypt.compare).mockResolvedValueOnce(false);
+      vi.mocked(bcrypt.compare).mockImplementation(() => Promise.resolve(false));
 
       // Spy on getUserByEmail and mock bcrypt
       const getUserByEmailSpy = vi.spyOn(userService, 'getUserByEmail');

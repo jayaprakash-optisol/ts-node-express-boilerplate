@@ -80,7 +80,6 @@ let parsedEnv;
 
 try {
   parsedEnv = envSchema.parse(process.env);
-  console.info('Environment variables parsed successfully');
 } catch (error) {
   console.error('Error parsing environment variables:', error);
   process.exit(1);
