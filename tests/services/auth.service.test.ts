@@ -7,6 +7,7 @@ import {
   ConflictError,
   UnauthorizedError,
   InternalServerError,
+  BadRequestError,
 } from '../../src/utils/error.util';
 import { _ok } from '../../src/utils/response.util';
 
@@ -97,6 +98,42 @@ describe('AuthService', () => {
       await expect(authService.register(mockNewUser)).rejects.toThrow();
     });
 
+    it('should throw an error when user creation fails', async () => {
+      // We need to reset mocks for this test
+      vi.resetAllMocks();
+
+      // Mock successful email check
+      mockCheckEmailAvailability.mockResolvedValue(_ok(undefined, 'Email is available'));
+
+      // Mock unsuccessful user creation
+      mockCreateUser.mockResolvedValue({
+        success: false,
+        error: 'Failed to create user',
+        statusCode: StatusCodes.BAD_REQUEST,
+      });
+
+      // Test that an error is thrown
+      await expect(authService.register(mockNewUser)).rejects.toThrow(BadRequestError);
+    });
+
+    it('should handle user creation that returns success but no data', async () => {
+      // We need to reset mocks for this test
+      vi.resetAllMocks();
+
+      // Mock successful email check
+      mockCheckEmailAvailability.mockResolvedValue(_ok(undefined, 'Email is available'));
+
+      // Mock user creation with success but no data
+      mockCreateUser.mockResolvedValue({
+        success: true,
+        data: null,
+        statusCode: StatusCodes.CREATED,
+      });
+
+      // Test that an error is thrown
+      await expect(authService.register(mockNewUser)).rejects.toThrow(BadRequestError);
+    });
+
     it('should handle unexpected errors', async () => {
       // Simplified error test
       mockCheckEmailAvailability.mockRejectedValueOnce(new Error('Test error'));
@@ -125,6 +162,40 @@ describe('AuthService', () => {
       await expect(authService.login('test@example.com', 'WrongPassword')).rejects.toThrow();
     });
 
+    it('should throw an error when verifyPassword fails', async () => {
+      // We need to reset mocks for this test
+      vi.resetAllMocks();
+
+      // Mock unsuccessful verification with error message
+      mockVerifyPassword.mockResolvedValue({
+        success: false,
+        error: 'Invalid credentials',
+        statusCode: StatusCodes.UNAUTHORIZED,
+      });
+
+      // Test that an error is thrown
+      await expect(authService.login('test@example.com', 'WrongPassword')).rejects.toThrow(
+        UnauthorizedError,
+      );
+    });
+
+    it('should throw an error when verifyPassword returns success but no data', async () => {
+      // We need to reset mocks for this test
+      vi.resetAllMocks();
+
+      // Mock verification with success but no data
+      mockVerifyPassword.mockResolvedValue({
+        success: true,
+        data: null,
+        statusCode: StatusCodes.OK,
+      });
+
+      // Test that an error is thrown
+      await expect(authService.login('test@example.com', 'Password123!')).rejects.toThrow(
+        UnauthorizedError,
+      );
+    });
+
     it('should handle unexpected errors', async () => {
       // Simplified error test
       mockVerifyPassword.mockRejectedValueOnce(new Error('Test error'));
@@ -151,6 +222,36 @@ describe('AuthService', () => {
 
       // Just test that an error is thrown
       await expect(authService.refreshToken(999)).rejects.toThrow();
+    });
+
+    it('should throw an error when getUserById fails', async () => {
+      // We need to reset mocks for this test
+      vi.resetAllMocks();
+
+      // Mock unsuccessful user retrieval
+      mockGetUserById.mockResolvedValue({
+        success: false,
+        error: 'User not found',
+        statusCode: StatusCodes.NOT_FOUND,
+      });
+
+      // Test that an error is thrown
+      await expect(authService.refreshToken(999)).rejects.toThrow(NotFoundError);
+    });
+
+    it('should throw an error when getUserById returns success but no data', async () => {
+      // We need to reset mocks for this test
+      vi.resetAllMocks();
+
+      // Mock user retrieval with success but no data
+      mockGetUserById.mockResolvedValue({
+        success: true,
+        data: null,
+        statusCode: StatusCodes.OK,
+      });
+
+      // Test that an error is thrown
+      await expect(authService.refreshToken(999)).rejects.toThrow(NotFoundError);
     });
 
     it('should handle unexpected errors', async () => {

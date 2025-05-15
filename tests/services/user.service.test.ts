@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StatusCodes } from 'http-status-codes';
 import { mockUsers, mockNewUser } from '../mocks/data';
+import env from '../../src/config/env.config';
 
 // Create mock functions
 vi.mock('bcrypt', () => ({
@@ -29,6 +30,7 @@ import {
   NotFoundError,
   InternalServerError,
   UnauthorizedError,
+  ConflictError,
 } from '../../src/utils/error.util';
 
 describe('UserService', () => {
@@ -462,6 +464,147 @@ describe('UserService', () => {
       await expect(userService.verifyPassword('test@example.com', 'Password123!')).rejects.toThrow(
         InternalServerError,
       );
+    });
+  });
+
+  describe('checkEmailAvailability', () => {
+    it('should return that email is available when user not found', async () => {
+      // Mock getUserByEmail to throw NotFoundError
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      } as any);
+
+      const result = await userService.checkEmailAvailability('available@example.com');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Email is available');
+    });
+
+    it('should return that email is available when NotFoundError is caught', async () => {
+      // Mock getUserByEmail to throw NotFoundError directly
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockRejectedValue(new NotFoundError('User not found')),
+          }),
+        }),
+      } as any);
+
+      const result = await userService.checkEmailAvailability('available@example.com');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Email is available');
+    });
+
+    it('should throw ConflictError when email is already in use', async () => {
+      // Mock getUserByEmail to return a user
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([mockUsers[0]]),
+          }),
+        }),
+      } as any);
+
+      await expect(userService.checkEmailAvailability('test@example.com')).rejects.toThrow(
+        ConflictError,
+      );
+      await expect(userService.checkEmailAvailability('test@example.com')).rejects.toThrow(
+        'Email already in use',
+      );
+    });
+
+    it('should pass through other errors', async () => {
+      // Mock getUserByEmail to throw an error other than NotFoundError
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockRejectedValue(new Error('Database connection error')),
+          }),
+        }),
+      } as any);
+
+      await expect(userService.checkEmailAvailability('test@example.com')).rejects.toThrow(
+        'Database connection error',
+      );
+    });
+  });
+
+  // Test private methods
+  describe('private methods', () => {
+    it('hashPassword should hash a password', async () => {
+      // Mock env config to ensure BCRYPT_SALT_ROUNDS is properly processed
+      const originalEnv = { ...env };
+
+      // Test with different types of salt values
+      const testCases = [
+        { saltValue: 10, expected: 10 }, // Number
+        { saltValue: '10', expected: 10 }, // String
+      ];
+
+      for (const testCase of testCases) {
+        // Update env for this test case
+        (env as any).BCRYPT_SALT_ROUNDS = testCase.saltValue;
+
+        // Mock hash implementation for this specific test
+        const originalHash = vi.mocked(bcrypt.hash);
+        vi.mocked(bcrypt.hash).mockImplementationOnce(async (_password, saltRounds) => {
+          // Verify salt rounds are correctly processed
+          expect(saltRounds).toBe(testCase.expected);
+          return 'hashed_password123';
+        });
+
+        // Access private method
+        // @ts-ignore - accessing private method for testing
+        const hashedPassword = await userService.hashPassword('password123');
+
+        expect(hashedPassword).toBe('hashed_password123');
+        expect(bcrypt.hash).toHaveBeenCalledWith('password123', testCase.expected);
+
+        // Restore the original mock for the next iteration
+        vi.mocked(bcrypt.hash).mockImplementation(originalHash);
+      }
+
+      // Restore original env
+      Object.assign(env, originalEnv);
+    });
+
+    it('findUserOrFail should return user when found', async () => {
+      // Mock db.select for findUserOrFail
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([mockUsers[0]]),
+          }),
+        }),
+      } as any);
+
+      // Access private method
+      // @ts-ignore - accessing private method for testing
+      const user = await userService.findUserOrFail(1);
+
+      expect(user).toEqual(mockUsers[0]);
+    });
+
+    it('findUserOrFail should throw NotFoundError when user not found', async () => {
+      // Mock db.select for findUserOrFail
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      } as any);
+
+      // Access private method and expect it to throw
+      // @ts-ignore - accessing private method for testing
+      await expect(userService.findUserOrFail(999)).rejects.toThrow(NotFoundError);
+      // @ts-ignore - accessing private method for testing
+      await expect(userService.findUserOrFail(999)).rejects.toThrow('User with ID 999 not found');
     });
   });
 });
