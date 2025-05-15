@@ -38,7 +38,8 @@ scanner(
         'src/models/**',
         'src/config/**',
       ].join(','),
-      'sonar.exclusions': 'node_modules/**,coverage/**,dist/**,test/**',
+      'sonar.exclusions':
+        'node_modules/**,coverage/**,dist/**,tests/**,jest.config.ts,drizzle.config.ts',
     },
   },
   () => process.exit(),
