@@ -9,6 +9,20 @@ import {
   createMockNext,
   generateOrthogonalTestCases,
 } from '../utils/test-utils';
+import { BadRequestError, NotFoundError } from '../../src/utils/error.util';
+
+// Mock the asyncHandler middleware
+vi.mock('../../src/middleware/async.middleware', () => ({
+  asyncHandler: vi.fn(fn => {
+    return async (req, res, next) => {
+      try {
+        await fn(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    };
+  }),
+}));
 
 // Mock the service layer
 vi.mock('../../src/services/user.service', () => {
@@ -115,7 +129,7 @@ describe('UserController', () => {
     it('should validate positive integers for pagination', async () => {
       // Setup mocks with invalid pagination
       const req = createMockRequest({ query: { page: '-1', limit: '0' } });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Call the controller method
@@ -124,19 +138,15 @@ describe('UserController', () => {
       // Service should not be called with invalid pagination
       expect(userService.getAllUsers).not.toHaveBeenCalled();
 
-      // Should return validation error
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Page and limit must be positive integers',
-        }),
-      );
+      // Should pass BadRequestError to next
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Page and limit must be positive integers');
     });
 
     it('should return error if getAllUsers fails', async () => {
       // Setup mocks
       const req = createMockRequest({ query: {} });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -149,19 +159,15 @@ describe('UserController', () => {
       // Call the controller method
       await controller.getAllUsers(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Database error',
-        }),
-      );
+      // Verify BadRequestError was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Database error');
     });
 
     it('should return default error message if error is undefined', async () => {
       // Setup mocks
       const req = createMockRequest({ query: {} });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -174,13 +180,9 @@ describe('UserController', () => {
       // Call the controller method
       await controller.getAllUsers(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Failed to retrieve users',
-        }),
-      );
+      // Verify BadRequestError with default message was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Failed to retrieve users');
     });
 
     it('should handle unexpected errors', async () => {
@@ -236,7 +238,7 @@ describe('UserController', () => {
     it('should validate user ID is a number', async () => {
       // Setup mocks with invalid ID
       const req = createMockRequest({ params: { id: 'abc' } });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Call the controller method
@@ -245,19 +247,15 @@ describe('UserController', () => {
       // Service should not be called with invalid ID
       expect(userService.getUserById).not.toHaveBeenCalled();
 
-      // Should return validation error
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Invalid user ID',
-        }),
-      );
+      // Should pass BadRequestError to next
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Invalid user ID');
     });
 
     it('should return error if user not found', async () => {
       // Setup mocks
       const req = createMockRequest({ params: { id: '999' } });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -270,19 +268,15 @@ describe('UserController', () => {
       // Call the controller method
       await controller.getUserById(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'User not found',
-        }),
-      );
+      // Verify NotFoundError was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next.mock.calls[0][0].message).toBe('User not found');
     });
 
     it('should return default error message if error is undefined', async () => {
       // Setup mocks
       const req = createMockRequest({ params: { id: '1' } });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -295,13 +289,9 @@ describe('UserController', () => {
       // Call the controller method
       await controller.getUserById(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Failed to retrieve user',
-        }),
-      );
+      // Verify NotFoundError with default message was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next.mock.calls[0][0].message).toBe('Failed to retrieve user');
     });
 
     it('should handle unexpected errors', async () => {
@@ -378,7 +368,7 @@ describe('UserController', () => {
               lastName: 'User',
             },
           });
-          const { res, jsonSpy } = createMockResponse();
+          const { res } = createMockResponse();
           const next = createMockNext();
 
           // Call the controller method
@@ -387,13 +377,9 @@ describe('UserController', () => {
           // Should not call service if validation fails
           expect(userService.createUser).not.toHaveBeenCalled();
 
-          // Should return validation error
-          expect(jsonSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-              success: false,
-              message: 'Email and password are required',
-            }),
-          );
+          // Should pass BadRequestError to next
+          expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+          expect(next.mock.calls[0][0].message).toBe('Email and password are required');
         });
       }
     });
@@ -401,7 +387,7 @@ describe('UserController', () => {
     it('should return error if user creation fails', async () => {
       // Setup mocks
       const req = createMockRequest({ body: mockNewUser });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -414,19 +400,15 @@ describe('UserController', () => {
       // Call the controller method
       await controller.createUser(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Email already in use',
-        }),
-      );
+      // Verify BadRequestError was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Email already in use');
     });
 
     it('should return default error message if error is undefined', async () => {
       // Setup mocks
       const req = createMockRequest({ body: mockNewUser });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -439,13 +421,9 @@ describe('UserController', () => {
       // Call the controller method
       await controller.createUser(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Failed to create user',
-        }),
-      );
+      // Verify BadRequestError with default message was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Failed to create user');
     });
 
     it('should handle unexpected errors', async () => {
@@ -516,7 +494,7 @@ describe('UserController', () => {
         params: { id: 'abc' },
         body: updateData,
       });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Call the controller method
@@ -525,13 +503,9 @@ describe('UserController', () => {
       // Service should not be called with invalid ID
       expect(userService.updateUser).not.toHaveBeenCalled();
 
-      // Should return validation error
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Invalid user ID',
-        }),
-      );
+      // Should pass BadRequestError to next
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Invalid user ID');
     });
 
     it('should return error if user update fails', async () => {
@@ -540,7 +514,7 @@ describe('UserController', () => {
         params: { id: '1' },
         body: updateData,
       });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -553,13 +527,9 @@ describe('UserController', () => {
       // Call the controller method
       await controller.updateUser(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'User not found',
-        }),
-      );
+      // Verify NotFoundError was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next.mock.calls[0][0].message).toBe('User not found');
     });
 
     it('should return default error message if error is undefined', async () => {
@@ -568,7 +538,7 @@ describe('UserController', () => {
         params: { id: '1' },
         body: updateData,
       });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -581,13 +551,9 @@ describe('UserController', () => {
       // Call the controller method
       await controller.updateUser(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Failed to update user',
-        }),
-      );
+      // Verify NotFoundError with default message was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next.mock.calls[0][0].message).toBe('Failed to update user');
     });
 
     it('should handle unexpected errors', async () => {
@@ -642,7 +608,7 @@ describe('UserController', () => {
     it('should validate user ID is a number', async () => {
       // Setup mocks with invalid ID
       const req = createMockRequest({ params: { id: 'abc' } });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Call the controller method
@@ -651,19 +617,15 @@ describe('UserController', () => {
       // Service should not be called with invalid ID
       expect(userService.deleteUser).not.toHaveBeenCalled();
 
-      // Should return validation error
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Invalid user ID',
-        }),
-      );
+      // Should pass BadRequestError to next
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Invalid user ID');
     });
 
     it('should return error if user deletion fails', async () => {
       // Setup mocks
       const req = createMockRequest({ params: { id: '1' } });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -676,19 +638,15 @@ describe('UserController', () => {
       // Call the controller method
       await controller.deleteUser(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'User not found',
-        }),
-      );
+      // Verify NotFoundError was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next.mock.calls[0][0].message).toBe('User not found');
     });
 
     it('should return default error message if error is undefined', async () => {
       // Setup mocks
       const req = createMockRequest({ params: { id: '1' } });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -701,13 +659,9 @@ describe('UserController', () => {
       // Call the controller method
       await controller.deleteUser(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Failed to delete user',
-        }),
-      );
+      // Verify NotFoundError with default message was passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next.mock.calls[0][0].message).toBe('Failed to delete user');
     });
 
     it('should handle unexpected errors', async () => {

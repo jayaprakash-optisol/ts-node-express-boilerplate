@@ -2,13 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StatusCodes } from 'http-status-codes';
 import {
   _ok,
-  _error,
   sendSuccess,
-  sendError,
   createServiceResponse,
-  serviceSuccess,
-  serviceError,
+  createSuccessResponse,
+  handleServiceError,
 } from '../../src/utils/response.util';
+import {
+  BadRequestError,
+  ConflictError,
+  DatabaseError,
+  InternalServerError,
+  NotFoundError,
+  UnauthorizedError,
+} from '../../src/utils/error.util';
 import { createMockResponse } from './test-utils';
 
 // Mock encryption utility
@@ -67,7 +73,45 @@ describe('Response Utilities', () => {
     });
   });
 
-  describe('serviceSuccess / _ok', () => {
+  describe('createSuccessResponse', () => {
+    it('should create a success response with default status code', () => {
+      const result = createSuccessResponse({ id: 1 }, 'Success message');
+
+      expect(result).toEqual({
+        success: true,
+        data: { id: 1 },
+        error: null,
+        message: 'Success message',
+        statusCode: StatusCodes.OK,
+      });
+    });
+
+    it('should create a success response with custom status code', () => {
+      const result = createSuccessResponse({ id: 1 }, 'Created', StatusCodes.CREATED);
+
+      expect(result).toEqual({
+        success: true,
+        data: { id: 1 },
+        error: null,
+        message: 'Created',
+        statusCode: StatusCodes.CREATED,
+      });
+    });
+
+    it('should handle undefined data', () => {
+      const result = createSuccessResponse(undefined, 'No content', StatusCodes.NO_CONTENT);
+
+      expect(result).toEqual({
+        success: true,
+        data: undefined,
+        error: null,
+        message: 'No content',
+        statusCode: StatusCodes.NO_CONTENT,
+      });
+    });
+  });
+
+  describe('_ok (backward compatibility)', () => {
     it('should create a success response with default status code', () => {
       const result = _ok({ id: 1 }, 'Success message');
 
@@ -81,7 +125,7 @@ describe('Response Utilities', () => {
     });
 
     it('should create a success response with custom status code', () => {
-      const result = serviceSuccess({ id: 1 }, 'Created', StatusCodes.CREATED);
+      const result = _ok({ id: 1 }, 'Created', StatusCodes.CREATED);
 
       expect(result).toEqual({
         success: true,
@@ -105,42 +149,42 @@ describe('Response Utilities', () => {
     });
   });
 
-  describe('serviceError / _error', () => {
-    it('should create an error response with default status code', () => {
-      const result = _error('Error message');
+  describe('handleServiceError', () => {
+    it('should pass through BadRequestError', () => {
+      const error = new BadRequestError('Invalid input');
 
-      expect(result).toEqual({
-        success: false,
-        error: 'Error message',
-        message: 'Error message',
-        data: undefined,
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      });
+      expect(() => handleServiceError(error, 'Test context')).toThrow(BadRequestError);
+      expect(() => handleServiceError(error, 'Test context')).toThrow('Invalid input');
     });
 
-    it('should create an error response with custom status code', () => {
-      const result = serviceError('Not found', StatusCodes.NOT_FOUND);
+    it('should pass through NotFoundError', () => {
+      const error = new NotFoundError('Resource not found');
 
-      expect(result).toEqual({
-        success: false,
-        error: 'Not found',
-        message: 'Not found',
-        data: undefined,
-        statusCode: StatusCodes.NOT_FOUND,
-      });
+      expect(() => handleServiceError(error, 'Test context')).toThrow(NotFoundError);
+      expect(() => handleServiceError(error, 'Test context')).toThrow('Resource not found');
     });
 
-    it('should include data if provided', () => {
-      const data = { additionalInfo: 'error details' };
-      const result = _error('Error with data', StatusCodes.BAD_REQUEST, data);
+    it('should pass through UnauthorizedError', () => {
+      const error = new UnauthorizedError('Not authorized');
 
-      expect(result).toEqual({
-        success: false,
-        error: 'Error with data',
-        message: 'Error with data',
-        data,
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
+      expect(() => handleServiceError(error, 'Test context')).toThrow(UnauthorizedError);
+      expect(() => handleServiceError(error, 'Test context')).toThrow('Not authorized');
+    });
+
+    it('should wrap unknown errors with InternalServerError', () => {
+      const error = new Error('Unknown error');
+
+      expect(() => handleServiceError(error, 'Test context')).toThrow(InternalServerError);
+      expect(() => handleServiceError(error, 'Test context')).toThrow(
+        'Test context: Unknown error',
+      );
+    });
+
+    it('should convert database unique constraint violations to ConflictError', () => {
+      const error = Object.assign(new Error('Duplicate key'), { code: '23505' });
+
+      expect(() => handleServiceError(error, 'Test context')).toThrow(ConflictError);
+      expect(() => handleServiceError(error, 'Test context')).toThrow('Resource already exists');
     });
   });
 
@@ -187,54 +231,6 @@ describe('Response Utilities', () => {
         error: null,
         message: 'No content',
         statusCode: StatusCodes.NO_CONTENT,
-      });
-    });
-  });
-
-  describe('sendError', () => {
-    it('should send an error response with message', () => {
-      const { res, statusSpy, jsonSpy } = createMockResponse();
-
-      sendError(res, 'Error message');
-
-      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
-      expect(jsonSpy).toHaveBeenCalledWith({
-        success: false,
-        message: 'Error message',
-        error: 'Error message',
-        data: undefined,
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    });
-
-    it('should send an error response with custom status code', () => {
-      const { res, statusSpy, jsonSpy } = createMockResponse();
-
-      sendError(res, 'Not found', StatusCodes.NOT_FOUND);
-
-      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.NOT_FOUND);
-      expect(jsonSpy).toHaveBeenCalledWith({
-        success: false,
-        message: 'Not found',
-        error: 'Not found',
-        data: undefined,
-        statusCode: StatusCodes.NOT_FOUND,
-      });
-    });
-
-    it('should include data if provided', () => {
-      const { res, statusSpy, jsonSpy } = createMockResponse();
-      const errorData = { details: 'validation failed' };
-
-      sendError(res, 'Error with data', StatusCodes.BAD_REQUEST, errorData);
-
-      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
-      expect(jsonSpy).toHaveBeenCalledWith({
-        success: false,
-        message: 'Error with data',
-        error: 'Error with data',
-        data: errorData,
-        statusCode: StatusCodes.BAD_REQUEST,
       });
     });
   });

@@ -3,117 +3,118 @@ import { StatusCodes } from 'http-status-codes';
 
 import env from '../config/env.config';
 import { type AuthRequest } from '../types';
+import {
+  AppError,
+  BadRequestError,
+  DB_ERROR_CODES,
+  isPgError,
+  UnauthorizedError,
+  NotFoundError,
+} from '../utils/error.util';
 import { logger } from '../utils/logger';
 
 // Define user interface for request
 type RequestWithUser = AuthRequest;
 
-// Error interfaces
-interface ValidationConstraint {
-  [key: string]: string;
-}
+// Helper functions to reduce complexity in the main error handler
+const handlePgError = (error: {
+  code: string;
+  detail?: string;
+  message?: string;
+}): { statusCode: number; message: string; error: AppError } => {
+  let statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
+  let message = error.message || 'Database error';
+  let transformedError: AppError;
 
-interface IValidationError {
-  constraints?: ValidationConstraint;
-  children?: IValidationError[];
-  property?: string;
-}
-
-interface ErrorWithStatusCode extends Error {
-  statusCode?: number;
-  isOperational?: boolean;
-  code?: string | number;
-}
-
-interface PostgreSQLUniqueViolationError extends ErrorWithStatusCode {
-  code: '23505';
-  detail: string;
-}
-
-// Custom error classes
-export class AppError extends Error {
-  statusCode: number;
-  isOperational: boolean;
-
-  constructor(message: string, statusCode: number, isOperational = true) {
-    super(message);
-    this.statusCode = statusCode;
-    this.isOperational = isOperational;
-    Error.captureStackTrace(this, this.constructor);
+  switch (error.code) {
+    case DB_ERROR_CODES.UNIQUE_VIOLATION:
+      statusCode = StatusCodes.CONFLICT;
+      message = error.detail ?? 'Duplicate key value violates unique constraint';
+      transformedError = new AppError(message, statusCode);
+      break;
+    case DB_ERROR_CODES.FOREIGN_KEY_VIOLATION:
+      statusCode = StatusCodes.BAD_REQUEST;
+      message = error.detail ?? 'Foreign key violation';
+      transformedError = new BadRequestError(message);
+      break;
+    default:
+      transformedError = new AppError(message, statusCode, false);
   }
-}
 
-export class BadRequestError extends AppError {
-  constructor(message: string) {
-    super(message, StatusCodes.BAD_REQUEST);
-  }
-}
+  return { statusCode, message, error: transformedError };
+};
 
-export class UnauthorizedError extends AppError {
-  constructor(message = 'Unauthorized') {
-    super(message, StatusCodes.UNAUTHORIZED);
-  }
-}
+const handleJwtError = (
+  error: Error & { name: string },
+): { statusCode: number; message: string; error: AppError } => {
+  let message = 'Authentication error';
 
-export class ForbiddenError extends AppError {
-  constructor(message = 'Forbidden') {
-    super(message, StatusCodes.FORBIDDEN);
+  if (error.name === 'JsonWebTokenError') {
+    message = 'Invalid token';
+  } else if (error.name === 'TokenExpiredError') {
+    message = 'Token expired';
   }
-}
 
-export class NotFoundError extends AppError {
-  constructor(message = 'Resource not found') {
-    super(message, StatusCodes.NOT_FOUND);
-  }
-}
+  return {
+    statusCode: StatusCodes.UNAUTHORIZED,
+    message,
+    error: new UnauthorizedError(message),
+  };
+};
 
 // 404 route handler
 export const notFoundHandler = (_req: Request, _res: Response, next: NextFunction): void => {
-  next(new NotFoundError(`Route not found`));
+  next(new NotFoundError('Route not found'));
+};
+
+// Helper to handle error messages properly
+const getErrorMessage = (error: Error): string => {
+  if (error.message === null) {
+    return null as unknown as string;
+  }
+  if (error.message === '') {
+    return '';
+  }
+  return error.message || 'Something went wrong';
 };
 
 // Main error handler
 export const errorHandler = (
-  err: Error | ErrorWithStatusCode,
+  err: unknown,
   req: RequestWithUser,
   res: Response,
-
   _next: NextFunction,
 ): void => {
-  let error = err as ErrorWithStatusCode;
-  let statusCode = error.statusCode ?? StatusCodes.INTERNAL_SERVER_ERROR;
-  let message = error.message || 'Something went wrong';
+  // Default to internal server error
+  let statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
+  let message: string;
+  let error: Error | AppError = err instanceof Error ? err : new Error(String(err));
 
-  // Handle validation errors
-  if (Array.isArray(error) && error[0]?.constraints) {
-    const validationErrors = error.map((e: IValidationError) =>
-      Object.values(e.constraints || {}).join(', '),
-    );
-    statusCode = StatusCodes.BAD_REQUEST;
-    message = validationErrors.join('; ');
-    error = new BadRequestError(message);
+  // Handle known errors
+  if (error instanceof AppError) {
+    statusCode = error.statusCode;
+    message = error.message;
   }
+  // Handle standard JS errors
+  else {
+    message = getErrorMessage(error);
 
-  // Handle PostgreSQL unique constraint violation
-  if (error.code === '23505') {
-    const duplicateError = error as PostgreSQLUniqueViolationError;
-    statusCode = StatusCodes.CONFLICT;
-    message = duplicateError.detail || 'Duplicate key value violates unique constraint';
-    error = new AppError(message, statusCode);
-  }
-
-  // Handle JWT errors
-  if ('name' in error) {
-    if (error.name === 'JsonWebTokenError') {
-      statusCode = StatusCodes.UNAUTHORIZED;
-      message = 'Invalid token';
-      error = new UnauthorizedError(message);
+    // Handle PostgreSQL errors
+    if (isPgError(error)) {
+      const result = handlePgError(error as { code: string; detail?: string; message?: string });
+      statusCode = result.statusCode;
+      message = result.message;
+      error = result.error;
     }
-
-    if (error.name === 'TokenExpiredError') {
-      statusCode = StatusCodes.UNAUTHORIZED;
-      message = 'Token expired';
-      error = new UnauthorizedError(message);
+    // Handle JWT errors
+    else if ('name' in error) {
+      const isJwtError = error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError';
+      if (isJwtError) {
+        const result = handleJwtError(error as Error & { name: string });
+        statusCode = result.statusCode;
+        message = result.message;
+        error = result.error;
+      }
     }
   }
 

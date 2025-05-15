@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { type Request, type Response, type NextFunction } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import { errorHandler, notFoundHandler } from '../../src/middleware/error.middleware';
 import {
-  errorHandler,
-  notFoundHandler,
   AppError,
   BadRequestError,
   UnauthorizedError,
   ForbiddenError,
   NotFoundError,
-} from '../../src/middleware/error.middleware';
+  ValidationError,
+  DB_ERROR_CODES,
+} from '../../src/utils/error.util';
 import { createMockRequest, createMockResponse, createMockNext } from '../utils/test-utils';
 import { logger } from '../../src/utils/logger';
 
@@ -128,26 +129,43 @@ describe('Error Middleware', () => {
       expect(logger.warn).toHaveBeenCalled();
     });
 
+    it('should handle ValidationError', () => {
+      const error = new ValidationError('Validation error');
+      errorHandler(error, req as any, res, next);
+
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.UNPROCESSABLE_ENTITY);
+      expect(jsonSpy).toHaveBeenCalledWith({
+        success: false,
+        error: 'Validation error',
+      });
+      expect(logger.warn).toHaveBeenCalled();
+    });
+
     it('should handle validation errors array', () => {
-      const validationErrors = [
-        {
-          property: 'email',
-          constraints: {
-            isEmail: 'email must be a valid email',
-            isNotEmpty: 'email should not be empty',
+      // Create a validation error object with proper structure for AppError
+      const validationError = new ValidationError(
+        'email must be a valid email, email should not be empty; password must be at least 8 characters',
+        'VALIDATION_ERROR',
+        [
+          {
+            property: 'email',
+            constraints: {
+              isEmail: 'email must be a valid email',
+              isNotEmpty: 'email should not be empty',
+            },
           },
-        },
-        {
-          property: 'password',
-          constraints: {
-            minLength: 'password must be at least 8 characters',
+          {
+            property: 'password',
+            constraints: {
+              minLength: 'password must be at least 8 characters',
+            },
           },
-        },
-      ];
+        ],
+      );
 
-      errorHandler(validationErrors as any, req as any, res, next);
+      errorHandler(validationError, req as any, res, next);
 
-      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.UNPROCESSABLE_ENTITY);
       expect(jsonSpy).toHaveBeenCalledWith({
         success: false,
         error: expect.stringContaining(
@@ -158,13 +176,12 @@ describe('Error Middleware', () => {
     });
 
     it('should handle PostgreSQL unique constraint violation errors', () => {
-      const pgError = {
-        code: '23505',
-        detail: 'Key (email)=(test@example.com) already exists.',
-        message: 'duplicate key value violates unique constraint',
-      };
+      // Create an error that mimics a PostgreSQL unique constraint violation
+      const pgError = new Error('duplicate key value violates unique constraint');
+      (pgError as any).code = DB_ERROR_CODES.UNIQUE_VIOLATION;
+      (pgError as any).detail = 'Key (email)=(test@example.com) already exists.';
 
-      errorHandler(pgError as any, req as any, res, next);
+      errorHandler(pgError, req as any, res, next);
 
       expect(statusSpy).toHaveBeenCalledWith(StatusCodes.CONFLICT);
       expect(jsonSpy).toHaveBeenCalledWith({
@@ -174,13 +191,28 @@ describe('Error Middleware', () => {
       expect(logger.warn).toHaveBeenCalled();
     });
 
-    it('should handle PostgreSQL unique constraint without detail', () => {
-      const pgError = {
-        code: '23505',
-        message: 'duplicate key value violates unique constraint',
-      };
+    it('should handle PostgreSQL foreign key violation errors', () => {
+      // Create an error that mimics a PostgreSQL foreign key constraint violation
+      const pgError = new Error('foreign key violation');
+      (pgError as any).code = DB_ERROR_CODES.FOREIGN_KEY_VIOLATION;
+      (pgError as any).detail = 'Key (user_id)=(999) is not present in table "users".';
 
-      errorHandler(pgError as any, req as any, res, next);
+      errorHandler(pgError, req as any, res, next);
+
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
+      expect(jsonSpy).toHaveBeenCalledWith({
+        success: false,
+        error: 'Key (user_id)=(999) is not present in table "users".',
+      });
+      expect(logger.warn).toHaveBeenCalled();
+    });
+
+    it('should handle PostgreSQL unique constraint violation without detail', () => {
+      // Create an error that mimics a PostgreSQL unique constraint violation without detail
+      const pgError = new Error('duplicate key value violates unique constraint');
+      (pgError as any).code = DB_ERROR_CODES.UNIQUE_VIOLATION;
+
+      errorHandler(pgError, req as any, res, next);
 
       expect(statusSpy).toHaveBeenCalledWith(StatusCodes.CONFLICT);
       expect(jsonSpy).toHaveBeenCalledWith({
@@ -190,13 +222,42 @@ describe('Error Middleware', () => {
       expect(logger.warn).toHaveBeenCalled();
     });
 
-    it('should handle JWT token errors', () => {
-      const jwtError = {
-        name: 'JsonWebTokenError',
-        message: 'invalid signature',
-      };
+    it('should handle PostgreSQL foreign key violation without detail', () => {
+      // Create an error that mimics a PostgreSQL foreign key constraint violation without detail
+      const pgError = new Error('foreign key violation');
+      (pgError as any).code = DB_ERROR_CODES.FOREIGN_KEY_VIOLATION;
 
-      errorHandler(jwtError as any, req as any, res, next);
+      errorHandler(pgError, req as any, res, next);
+
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
+      expect(jsonSpy).toHaveBeenCalledWith({
+        success: false,
+        error: 'Foreign key violation',
+      });
+      expect(logger.warn).toHaveBeenCalled();
+    });
+
+    it('should handle other PostgreSQL errors', () => {
+      // Create an error that mimics another type of PostgreSQL error
+      const pgError = new Error('Database error');
+      (pgError as any).code = 'OTHER_PG_ERROR';
+
+      errorHandler(pgError, req as any, res, next);
+
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(jsonSpy).toHaveBeenCalledWith({
+        success: false,
+        error: 'Database error',
+      });
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should handle JWT token errors', () => {
+      // Create an error that mimics a JWT error
+      const jwtError = new Error('invalid token');
+      jwtError.name = 'JsonWebTokenError';
+
+      errorHandler(jwtError, req as any, res, next);
 
       expect(statusSpy).toHaveBeenCalledWith(StatusCodes.UNAUTHORIZED);
       expect(jsonSpy).toHaveBeenCalledWith({
@@ -207,13 +268,11 @@ describe('Error Middleware', () => {
     });
 
     it('should handle JWT token expiration errors', () => {
-      const jwtExpiredError = {
-        name: 'TokenExpiredError',
-        message: 'jwt expired',
-        expiredAt: new Date(),
-      };
+      // Create an error that mimics a JWT expiration error
+      const jwtExpiredError = new Error('jwt expired');
+      jwtExpiredError.name = 'TokenExpiredError';
 
-      errorHandler(jwtExpiredError as any, req as any, res, next);
+      errorHandler(jwtExpiredError, req as any, res, next);
 
       expect(statusSpy).toHaveBeenCalledWith(StatusCodes.UNAUTHORIZED);
       expect(jsonSpy).toHaveBeenCalledWith({
@@ -246,14 +305,77 @@ describe('Error Middleware', () => {
       );
     });
 
-    it('should handle errors without messages', () => {
+    it('should handle non-string error message', () => {
+      // Create an error with a non-string message
       const error = new Error();
+      (error as any).message = { custom: 'error object' };
+
       errorHandler(error, req as any, res, next);
 
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(jsonSpy).toHaveBeenCalledWith({
         success: false,
-        error: 'Something went wrong',
+        error: { custom: 'error object' }, // The actual object is preserved
       });
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should handle null error message', () => {
+      // Create an error with a null message
+      const error = new Error();
+      (error as any).message = null;
+
+      errorHandler(error, req as any, res, next);
+
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(jsonSpy).toHaveBeenCalledWith({
+        success: false,
+        error: null, // null value is preserved
+      });
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should handle empty error message', () => {
+      const error = new Error('');
+      errorHandler(error, req as any, res, next);
+
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(jsonSpy).toHaveBeenCalledWith({
+        success: false,
+        error: '',
+      });
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should handle non-Error objects', () => {
+      // Test with a string
+      errorHandler('string error', req as any, res, next);
+
+      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(jsonSpy).toHaveBeenCalledWith({
+        success: false,
+        error: 'string error',
+      });
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should handle object errors', () => {
+      // Create fresh mocks for this test
+      const freshReq = createMockRequest() as Request;
+      const mockRes = createMockResponse();
+      const freshRes = mockRes.res;
+      const freshJsonSpy = mockRes.jsonSpy;
+      const freshStatusSpy = mockRes.statusSpy;
+
+      // Test with an object
+      errorHandler({ message: 'object error' }, freshReq as any, freshRes, next);
+
+      expect(freshStatusSpy).toHaveBeenCalledWith(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(freshJsonSpy).toHaveBeenCalledWith({
+        success: false,
+        error: '[object Object]',
+      });
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 
@@ -300,6 +422,13 @@ describe('Error Middleware', () => {
       expect(error).toBeInstanceOf(AppError);
       expect(error.message).toBe('Custom not found message');
       expect(error.statusCode).toBe(StatusCodes.NOT_FOUND);
+    });
+
+    it('should create ValidationError with correct status code', () => {
+      const error = new ValidationError('Validation failed');
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.message).toBe('Validation failed');
+      expect(error.statusCode).toBe(StatusCodes.UNPROCESSABLE_ENTITY);
     });
   });
 });

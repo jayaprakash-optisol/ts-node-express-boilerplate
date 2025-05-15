@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { validate } from '../../src/middleware/validator.middleware';
 import { createMockRequest, createMockResponse, createMockNext } from '../utils/test-utils';
 import { logger } from '../../src/utils/logger';
+import { ValidationError } from '../../src/utils/error.util';
 
 // Mock the logger
 vi.mock('../../src/utils/logger', () => ({
@@ -17,7 +18,7 @@ vi.mock('../../src/utils/logger', () => ({
 describe('Validator Middleware', () => {
   let req: Request;
   let res: Response;
-  let next: NextFunction;
+  let next: ReturnType<typeof vi.fn>;
   let jsonSpy: ReturnType<typeof vi.fn>;
   let statusSpy: ReturnType<typeof vi.fn>;
 
@@ -109,14 +110,11 @@ describe('Validator Middleware', () => {
       // Call the middleware
       validate(schema)(req, res, next);
 
-      // Expect an error response
-      expect(next).not.toHaveBeenCalled();
-      expect(statusSpy).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
-      expect(jsonSpy).toHaveBeenCalledWith({
-        success: false,
-        error: expect.stringContaining('email'),
-      });
-      expect(logger.warn).toHaveBeenCalled();
+      // Expect next to be called with ValidationError
+      expect(next).toHaveBeenCalledWith(expect.any(ValidationError));
+      expect(next.mock.calls[0][0].message).toMatch(
+        /email: Invalid email, password: String must contain at least 6 character/,
+      );
     });
 
     it('should format validation errors correctly', () => {
@@ -137,19 +135,12 @@ describe('Validator Middleware', () => {
       // Call the middleware
       validate(schema)(req, res, next);
 
-      // Verify error message format
-      expect(jsonSpy).toHaveBeenCalledWith({
-        success: false,
-        error: expect.stringContaining('email:'),
-      });
-      expect(jsonSpy).toHaveBeenCalledWith({
-        success: false,
-        error: expect.stringContaining('password:'),
-      });
-      expect(jsonSpy).toHaveBeenCalledWith({
-        success: false,
-        error: expect.stringContaining('age:'),
-      });
+      // Verify error is passed to next
+      expect(next).toHaveBeenCalledWith(expect.any(ValidationError));
+      const errorMsg = next.mock.calls[0][0].message;
+      expect(errorMsg).toContain('email:');
+      expect(errorMsg).toContain('password:');
+      expect(errorMsg).toContain('age:');
     });
 
     it('should call next with error for non-Zod errors', () => {

@@ -1,8 +1,7 @@
 import { type NextFunction, type Response } from 'express';
 
 import { type AuthRequest } from '../types';
-import { jwtUtil } from '../utils/jwt.util';
-import { AppError } from '../utils/response.util';
+import { UnauthorizedError, ForbiddenError, jwtUtil } from '../utils';
 
 // Verify JWT token from Authorization header
 export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
@@ -10,13 +9,13 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
-      throw new AppError('No token provided', 401);
+      throw new UnauthorizedError('No token provided');
     }
 
     const decoded = jwtUtil.verifyToken(token);
 
     if (!decoded.success || !decoded.data) {
-      throw new AppError('Invalid token', 401);
+      throw new UnauthorizedError('Invalid token');
     }
 
     req.user = {
@@ -26,7 +25,7 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
     };
     next();
   } catch {
-    next(new AppError('Invalid token', 401));
+    next(new UnauthorizedError('Invalid token'));
   }
 };
 
@@ -35,11 +34,11 @@ export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, _res: Response, next: NextFunction): void => {
     try {
       if (!req.user) {
-        throw new AppError('User not authenticated', 401);
+        throw new UnauthorizedError('User not authenticated');
       }
 
       if (!roles.includes(req.user.role)) {
-        throw new AppError('Insufficient permissions', 403);
+        throw new ForbiddenError('Insufficient permissions');
       }
 
       next();

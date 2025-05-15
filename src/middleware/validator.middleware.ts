@@ -1,7 +1,7 @@
 import { type NextFunction, type Request, type Response } from 'express';
-import { StatusCodes } from 'http-status-codes';
 import { type AnyZodObject, ZodError } from 'zod';
 
+import { ValidationError, formatZodError } from '../utils';
 import { logger } from '../utils/logger';
 
 /**
@@ -29,14 +29,8 @@ export const validate =
 
       // Handle validation errors
       if (error instanceof ZodError) {
-        const errorMessage = error.errors
-          .map(err => `${err.path.join('.')}: ${err.message}`)
-          .join(', ');
-
-        res.status(StatusCodes.BAD_REQUEST).json({
-          success: false,
-          error: `${errorMessage}`,
-        });
+        const errorMessage = formatZodError(error);
+        next(new ValidationError(errorMessage));
       } else {
         next(error);
       }

@@ -1,68 +1,20 @@
 import { type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import { type ZodError } from 'zod';
 
 import env from '../config/env.config';
 import { type ServiceResponse } from '../types';
 
 import { encrypt } from './encryption.util';
 import { logger } from './logger';
-
-// ===== ERROR HANDLING =====
-
-/**
- * Custom API error class with status code and operational flag
- */
-export class AppError extends Error {
-  public readonly statusCode: number;
-  public readonly isOperational: boolean;
-
-  constructor(message: string, statusCode: number, isOperational = true) {
-    super(message);
-    this.statusCode = statusCode;
-    this.isOperational = isOperational;
-    Error.captureStackTrace?.(this, this.constructor);
-  }
-}
-
-/**
- * Type guard to check if an error has a statusCode property
- */
-export const isAppError = (error: unknown): error is AppError => {
-  return error instanceof AppError;
-};
-
-/**
- * Error factory methods
- */
-export const createError = {
-  badRequest: (message: string): AppError => new AppError(message, StatusCodes.BAD_REQUEST),
-
-  unauthorized: (message = 'Unauthorized'): AppError =>
-    new AppError(message, StatusCodes.UNAUTHORIZED),
-
-  forbidden: (message = 'Forbidden'): AppError => new AppError(message, StatusCodes.FORBIDDEN),
-
-  notFound: (message = 'Resource not found'): AppError =>
-    new AppError(message, StatusCodes.NOT_FOUND),
-
-  internal: (message = 'Internal server error'): AppError =>
-    new AppError(message, StatusCodes.INTERNAL_SERVER_ERROR, false),
-};
-
-// For backward compatibility
-export const createBadRequestError = createError.badRequest;
-export const createUnauthorizedError = createError.unauthorized;
-export const createForbiddenError = createError.forbidden;
-export const createNotFoundError = createError.notFound;
-export const createInternalServerError = createError.internal;
-
-/**
- * Format ZodError for API response
- */
-export const formatZodError = (error: ZodError): string => {
-  return error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
-};
+import {
+  BadRequestError,
+  ConflictError,
+  DatabaseError,
+  InternalServerError,
+  NotFoundError,
+  UnauthorizedError,
+  ForbiddenError,
+} from './error.util';
 
 // ===== SERVICE RESPONSES =====
 
@@ -94,21 +46,6 @@ export const createSuccessResponse = <T>(
   return response;
 };
 
-/**
- * Create an error service response
- */
-export const createErrorResponse = <T>(
-  error: string,
-  statusCode = StatusCodes.BAD_REQUEST,
-  data?: T,
-): ServiceResponse<T> => {
-  return createServiceResponse<T>(false, data, error, statusCode);
-};
-
-// Shorthand functions
-export const serviceSuccess = createSuccessResponse;
-export const serviceError = createErrorResponse;
-
 // ===== EXPRESS RESPONSE HELPERS =====
 
 /**
@@ -130,34 +67,42 @@ export const sendSuccess = <T>(
   }
 };
 
-/**
- * Send an error response through Express
- */
-export const sendError = <T>(
-  res: Response,
-  error: string,
-  statusCode = StatusCodes.BAD_REQUEST,
-  data?: T,
-): void => {
-  try {
-    const response = createErrorResponse(error, statusCode, data);
-    res.status(response.statusCode).json(response);
-  } catch (err) {
-    logger.error('Error sending error response:', err);
-    throw err;
-  }
-};
-
 // ===== BACKWARD COMPATIBILITY =====
 
+/**
+ * Service success response (backward compatible api)
+ */
 export const _ok = <T>(data: T, message = '', code = StatusCodes.OK): ServiceResponse<T> => {
   return createSuccessResponse(data, message || 'Operation successful', code);
 };
 
-export const _error = <T>(
-  error: string,
-  code = StatusCodes.INTERNAL_SERVER_ERROR,
-  data?: T,
-): ServiceResponse<T> => {
-  return createErrorResponse(error, code, data);
-};
+/**
+ * Utility function to handle errors in services
+ * This helper rethrows domain errors and wraps unknown errors in InternalServerError
+ *
+ * @param error The caught error
+ * @param context Optional context message for logging
+ */
+export function handleServiceError(error: unknown, context = 'Service operation failed'): never {
+  // Check if this is a database unique constraint violation
+  if (error instanceof Error && 'code' in error && error.code === '23505') {
+    throw new ConflictError('Resource already exists');
+  }
+
+  // Pass through application domain errors
+  if (
+    error instanceof BadRequestError ||
+    error instanceof NotFoundError ||
+    error instanceof UnauthorizedError ||
+    error instanceof ForbiddenError ||
+    error instanceof ConflictError ||
+    error instanceof DatabaseError
+  ) {
+    throw error;
+  }
+
+  // Wrap unknown errors with InternalServerError
+  throw new InternalServerError(
+    error instanceof Error ? `${context}: ${error.message}` : String(context),
+  );
+}

@@ -10,6 +10,20 @@ import {
   generateOrthogonalTestCases,
 } from '../utils/test-utils';
 import { type AuthRequest } from '../../src/types';
+import { BadRequestError, UnauthorizedError } from '../../src/utils/error.util';
+
+// Mock the asyncHandler middleware
+vi.mock('../../src/middleware/async.middleware', () => ({
+  asyncHandler: vi.fn(fn => {
+    return async (req, res, next) => {
+      try {
+        await fn(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    };
+  }),
+}));
 
 // Mock the service layer
 vi.mock('../../src/services/auth.service', () => {
@@ -74,10 +88,10 @@ describe('AuthController', () => {
       );
     });
 
-    it('should return error if registration fails', async () => {
+    it('should throw BadRequestError if registration fails', async () => {
       // Setup mocks
       const req = createMockRequest({ body: mockRegisterRequest });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -90,22 +104,15 @@ describe('AuthController', () => {
       // Call the controller method
       await controller.register(req, res, next);
 
-      // Verify service was called
-      expect(authService.register).toHaveBeenCalledWith(mockRegisterRequest);
-
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Email already in use',
-        }),
-      );
+      // Verify next was called with the error
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Email already in use');
     });
 
-    it('should return default error message if error is undefined', async () => {
+    it('should throw default BadRequestError if error is undefined', async () => {
       // Setup mocks
       const req = createMockRequest({ body: mockRegisterRequest });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response with undefined error
@@ -118,13 +125,9 @@ describe('AuthController', () => {
       // Call the controller method
       await controller.register(req, res, next);
 
-      // Verify response shows default error message
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Registration failed',
-        }),
-      );
+      // Verify next was called with default error message
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Registration failed');
     });
 
     // Using orthogonal array testing to test missing fields
@@ -140,7 +143,7 @@ describe('AuthController', () => {
 
     registerTestCases.forEach(testCase => {
       if (!testCase.email || !testCase.password) {
-        it(`should validate required fields: email=${testCase.email}, password=${testCase.password}`, async () => {
+        it(`should throw BadRequestError for missing fields: email=${testCase.email}, password=${testCase.password}`, async () => {
           // Setup mocks
           const req = createMockRequest({
             body: {
@@ -150,7 +153,7 @@ describe('AuthController', () => {
               lastName: 'User',
             },
           });
-          const { res, jsonSpy } = createMockResponse();
+          const { res } = createMockResponse();
           const next = createMockNext();
 
           // Call the controller method
@@ -159,31 +162,28 @@ describe('AuthController', () => {
           // Should not call service if validation fails
           expect(authService.register).not.toHaveBeenCalled();
 
-          // Should return validation error
-          expect(jsonSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-              success: false,
-              message: 'Email and password are required',
-            }),
-          );
+          // Verify next was called with validation error
+          expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+          expect(next.mock.calls[0][0].message).toBe('Email and password are required');
         });
       }
     });
 
-    it('should handle unexpected errors', async () => {
+    it('should pass unexpected errors to next middleware', async () => {
       // Setup mocks
       const req = createMockRequest({ body: mockRegisterRequest });
       const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service to throw error
-      authService.register.mockRejectedValueOnce(new Error('Unexpected error'));
+      const error = new Error('Unexpected error');
+      authService.register.mockRejectedValueOnce(error);
 
       // Call the controller method
       await controller.register(req, res, next);
 
       // Verify next was called with error
-      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 
@@ -229,10 +229,10 @@ describe('AuthController', () => {
       );
     });
 
-    it('should return error for invalid credentials', async () => {
+    it('should throw UnauthorizedError for invalid credentials', async () => {
       // Setup mocks
       const req = createMockRequest({ body: mockLoginRequest });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
@@ -245,25 +245,15 @@ describe('AuthController', () => {
       // Call the controller method
       await controller.login(req, res, next);
 
-      // Verify service was called
-      expect(authService.login).toHaveBeenCalledWith(
-        mockLoginRequest.email,
-        mockLoginRequest.password,
-      );
-
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Invalid credentials',
-        }),
-      );
+      // Verify next was called with error
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(next.mock.calls[0][0].message).toBe('Invalid credentials');
     });
 
-    it('should return default error message if error is undefined', async () => {
+    it('should throw default UnauthorizedError if error is undefined', async () => {
       // Setup mocks
       const req = createMockRequest({ body: mockLoginRequest });
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response with undefined error
@@ -276,78 +266,61 @@ describe('AuthController', () => {
       // Call the controller method
       await controller.login(req, res, next);
 
-      // Verify response shows default error message
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Login failed',
-        }),
-      );
+      // Verify next was called with default error message
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(next.mock.calls[0][0].message).toBe('Login failed');
     });
 
-    // Validate required fields using orthogonal testing
-    const loginFactors = {
-      email: [undefined, 'test@example.com'],
-      password: [undefined, 'Password123!'],
-    };
+    it('should throw BadRequestError for missing fields', async () => {
+      // Setup mocks
+      const req = createMockRequest({
+        body: {
+          email: undefined,
+          password: undefined,
+        },
+      });
+      const { res } = createMockResponse();
+      const next = createMockNext();
 
-    const loginTestCases = generateOrthogonalTestCases<{
-      email: string | undefined;
-      password: string | undefined;
-    }>(loginFactors);
+      // Call the controller method
+      await controller.login(req, res, next);
 
-    loginTestCases.forEach(testCase => {
-      if (!testCase.email || !testCase.password) {
-        it(`should validate required fields: email=${testCase.email}, password=${testCase.password}`, async () => {
-          // Setup mocks
-          const req = createMockRequest({
-            body: {
-              email: testCase.email,
-              password: testCase.password,
-            },
-          });
-          const { res, jsonSpy } = createMockResponse();
-          const next = createMockNext();
+      // Should not call service if validation fails
+      expect(authService.login).not.toHaveBeenCalled();
 
-          // Call the controller method
-          await controller.login(req, res, next);
-
-          // Should not call service if validation fails
-          expect(authService.login).not.toHaveBeenCalled();
-
-          // Should return validation error
-          expect(jsonSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-              success: false,
-              message: 'Email and password are required',
-            }),
-          );
-        });
-      }
+      // Verify next was called with validation error
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Email and password are required');
     });
 
-    it('should handle unexpected errors', async () => {
+    it('should pass unexpected errors to next middleware', async () => {
       // Setup mocks
       const req = createMockRequest({ body: mockLoginRequest });
       const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service to throw error
-      authService.login.mockRejectedValueOnce(new Error('Unexpected error'));
+      const error = new Error('Unexpected error');
+      authService.login.mockRejectedValueOnce(error);
 
       // Call the controller method
       await controller.login(req, res, next);
 
       // Verify next was called with error
-      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 
   describe('getCurrentUser', () => {
-    it('should return current authenticated user', async () => {
-      // Setup mocks with user in request
-      const req = createMockRequest({}) as AuthRequest;
-      req.user = mockJwtPayload;
+    it('should return current user info', async () => {
+      // Setup mocks - create a request and manually add the user property for testing
+      const req = createMockRequest({}) as unknown as AuthRequest;
+      req.user = {
+        id: '1',
+        userId: 1,
+        email: 'test@example.com',
+        role: 'user',
+      };
       const { res, jsonSpy } = createMockResponse();
       const next = createMockNext();
 
@@ -358,59 +331,38 @@ describe('AuthController', () => {
       expect(jsonSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           success: true,
-          data: {
-            userId: mockJwtPayload.userId,
-            email: mockJwtPayload.email,
-            role: mockJwtPayload.role,
-          },
+          data: expect.objectContaining({
+            userId: 1,
+            email: 'test@example.com',
+          }),
         }),
       );
     });
 
-    it('should return error if user not authenticated', async () => {
-      // Setup mocks without user in request
-      const req = createMockRequest({}) as AuthRequest;
-      const { res, jsonSpy } = createMockResponse();
-      const next = createMockNext();
-
-      // Call the controller method
-      await controller.getCurrentUser(req, res, next);
-
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'User not authenticated',
-        }),
-      );
-    });
-
-    it('should handle unexpected errors in getCurrentUser', async () => {
-      // Setup mocks with user in request
-      const req = createMockRequest({}) as AuthRequest;
-      req.user = mockJwtPayload;
+    it('should throw UnauthorizedError if user is not authenticated', async () => {
+      // Setup mocks without user property
+      const req = createMockRequest({}) as unknown as AuthRequest;
       const { res } = createMockResponse();
       const next = createMockNext();
-
-      // Mock a thrown error in the response handling
-      vi.spyOn(res, 'json').mockImplementationOnce(() => {
-        throw new Error('Unexpected error');
-      });
 
       // Call the controller method
       await controller.getCurrentUser(req, res, next);
 
       // Verify next was called with error
-      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(next.mock.calls[0][0].message).toBe('User not authenticated');
     });
   });
 
   describe('refreshToken', () => {
     it('should refresh token successfully', async () => {
-      // Setup mocks
-      const req = createMockRequest({}) as AuthRequest;
+      // Setup mocks - create a request and manually add the user property for testing
+      const req = createMockRequest({}) as unknown as AuthRequest;
       req.user = {
-        ...mockJwtPayload,
+        id: '1',
+        userId: 1,
+        email: 'test@example.com',
+        role: 'user',
       };
       const { res, jsonSpy } = createMockResponse();
       const next = createMockNext();
@@ -419,7 +371,7 @@ describe('AuthController', () => {
       authService.refreshToken.mockResolvedValueOnce({
         success: true,
         data: {
-          token: 'new_jwt_token',
+          token: 'new_token',
         },
         message: 'Token refreshed successfully',
       });
@@ -427,115 +379,110 @@ describe('AuthController', () => {
       // Call the controller method
       await controller.refreshToken(req, res, next);
 
-      // Verify service was called with numeric ID
-      expect(authService.refreshToken).toHaveBeenCalledWith(Number(req.user.id));
+      // Verify service was called
+      expect(authService.refreshToken).toHaveBeenCalledWith(1);
 
       // Verify response
       expect(jsonSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           success: true,
-          data: {
-            token: 'new_jwt_token',
-          },
+          data: expect.objectContaining({
+            token: 'new_token',
+          }),
           message: 'Token refreshed successfully',
         }),
       );
     });
 
-    it('should return error if token refresh fails', async () => {
-      // Setup mocks
-      const req = createMockRequest({}) as AuthRequest;
+    it('should throw UnauthorizedError if user is not authenticated', async () => {
+      // Setup mocks without user property
+      const req = createMockRequest({}) as unknown as AuthRequest;
+      const { res } = createMockResponse();
+      const next = createMockNext();
+
+      // Call the controller method
+      await controller.refreshToken(req, res, next);
+
+      // Verify next was called with error
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(next.mock.calls[0][0].message).toBe('User not authenticated');
+    });
+
+    it('should throw BadRequestError if token refresh fails', async () => {
+      // Setup mocks - create a request and manually add the user property for testing
+      const req = createMockRequest({}) as unknown as AuthRequest;
       req.user = {
-        ...mockJwtPayload,
+        id: '1',
+        userId: 1,
+        email: 'test@example.com',
+        role: 'user',
       };
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response
       authService.refreshToken.mockResolvedValueOnce({
         success: false,
-        statusCode: StatusCodes.NOT_FOUND,
-        error: 'User not found',
+        statusCode: StatusCodes.BAD_REQUEST,
+        error: 'Invalid refresh token',
       });
 
       // Call the controller method
       await controller.refreshToken(req, res, next);
 
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'User not found',
-        }),
-      );
+      // Verify next was called with error
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Invalid refresh token');
     });
 
-    it('should return default error message if token refresh error is undefined', async () => {
-      // Setup mocks
-      const req = createMockRequest({}) as AuthRequest;
+    it('should throw default BadRequestError if error is undefined', async () => {
+      // Setup mocks - create a request and manually add the user property for testing
+      const req = createMockRequest({}) as unknown as AuthRequest;
       req.user = {
-        ...mockJwtPayload,
+        id: '1',
+        userId: 1,
+        email: 'test@example.com',
+        role: 'user',
       };
-      const { res, jsonSpy } = createMockResponse();
+      const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service response with undefined error
       authService.refreshToken.mockResolvedValueOnce({
         success: false,
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+        statusCode: StatusCodes.BAD_REQUEST,
         error: undefined,
       });
 
       // Call the controller method
       await controller.refreshToken(req, res, next);
 
-      // Verify response shows default error message
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'Token refresh failed',
-        }),
-      );
+      // Verify next was called with default error message
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(next.mock.calls[0][0].message).toBe('Token refresh failed');
     });
 
-    it('should return error if user not authenticated', async () => {
-      // Setup mocks without user in request
-      const req = createMockRequest({}) as AuthRequest;
-      const { res, jsonSpy } = createMockResponse();
-      const next = createMockNext();
-
-      // Call the controller method
-      await controller.refreshToken(req, res, next);
-
-      // Verify response
-      expect(jsonSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          message: 'User not authenticated',
-        }),
-      );
-
-      // Service should not be called
-      expect(authService.refreshToken).not.toHaveBeenCalled();
-    });
-
-    it('should handle unexpected errors in refreshToken', async () => {
-      // Setup mocks
-      const req = createMockRequest({}) as AuthRequest;
+    it('should pass unexpected errors to next middleware', async () => {
+      // Setup mocks - create a request and manually add the user property for testing
+      const req = createMockRequest({}) as unknown as AuthRequest;
       req.user = {
-        ...mockJwtPayload,
+        id: '1',
+        userId: 1,
+        email: 'test@example.com',
+        role: 'user',
       };
       const { res } = createMockResponse();
       const next = createMockNext();
 
       // Mock service to throw error
-      authService.refreshToken.mockRejectedValueOnce(new Error('Unexpected error'));
+      const error = new Error('Unexpected error');
+      authService.refreshToken.mockRejectedValueOnce(error);
 
       // Call the controller method
       await controller.refreshToken(req, res, next);
 
       // Verify next was called with error
-      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 });

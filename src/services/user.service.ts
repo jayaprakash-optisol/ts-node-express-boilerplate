@@ -6,14 +6,21 @@ import { db } from '../config/database.config';
 import env from '../config/env.config';
 import { users } from '../models';
 import {
+  IUserResponse,
   type IUserService,
   type NewUser,
-  type PaginatedResult,
   type PaginationParams,
   type ServiceResponse,
   type User,
 } from '../types';
-import { _error, _ok, createNotFoundError, createUnauthorizedError } from '../utils/response.util';
+import {
+  ConflictError,
+  DatabaseError,
+  NotFoundError,
+  UnauthorizedError,
+  _ok,
+  handleServiceError,
+} from '../utils';
 
 export class UserService implements IUserService {
   private static instance: UserService;
@@ -31,6 +38,25 @@ export class UserService implements IUserService {
   }
 
   /**
+   * Helper method to check if an email is available
+   */
+  async checkEmailAvailability(email: string): Promise<ServiceResponse<void>> {
+    try {
+      const existingUser = await this.getUserByEmail(email);
+      if (existingUser.success && existingUser.data) {
+        throw new ConflictError('Email already in use');
+      }
+      return _ok(undefined, 'Email is available');
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        // Email doesn't exist, so it's available
+        return _ok(undefined, 'Email is available');
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Create a new user
    */
   async createUser(
@@ -38,10 +64,7 @@ export class UserService implements IUserService {
   ): Promise<ServiceResponse<User>> {
     try {
       // Hash password
-      const hashedPassword = await bcrypt.hash(
-        userData.password,
-        parseInt(env.BCRYPT_SALT_ROUNDS.toString(), 10),
-      );
+      const hashedPassword = await this.hashPassword(userData.password);
 
       // Insert user into database with hashed password
       const result = await db
@@ -53,12 +76,12 @@ export class UserService implements IUserService {
         .returning();
 
       if (!result.length) {
-        throw new Error('Failed to create user');
+        throw new DatabaseError('Failed to create user');
       }
 
       return _ok(result[0], 'User created successfully', StatusCodes.CREATED);
     } catch (error) {
-      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
+      throw handleServiceError(error, 'User creation failed');
     }
   }
 
@@ -70,12 +93,12 @@ export class UserService implements IUserService {
       const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
       if (!result.length) {
-        throw createNotFoundError(`User with ID ${userId} not found`);
+        throw new NotFoundError(`User with ID ${userId} not found`);
       }
 
       return _ok(result[0], 'User found');
     } catch (error) {
-      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
+      throw handleServiceError(error, `Failed to get user with ID ${userId}`);
     }
   }
 
@@ -87,21 +110,19 @@ export class UserService implements IUserService {
       const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
       if (!result.length) {
-        throw createNotFoundError(`User with email ${email} not found`);
+        throw new NotFoundError(`User with email ${email} not found`);
       }
 
       return _ok(result[0], 'User found');
     } catch (error) {
-      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
+      throw handleServiceError(error, `Failed to get user with email ${email}`);
     }
   }
 
   /**
    * Get all users with pagination
    */
-  async getAllUsers(
-    pagination: PaginationParams,
-  ): Promise<ServiceResponse<PaginatedResult<Omit<User, 'password'>>>> {
+  async getAllUsers(pagination: PaginationParams): Promise<ServiceResponse<IUserResponse>> {
     try {
       const { page = 1, limit = 10 } = pagination;
       const offset = (page - 1) * limit;
@@ -117,8 +138,8 @@ export class UserService implements IUserService {
       // Calculate pagination metadata
       const totalPages = Math.ceil(total / limit);
 
-      const paginatedResult: PaginatedResult<Omit<User, 'password'>> = {
-        items: result,
+      const paginatedResult: IUserResponse = {
+        users: result,
         total,
         page,
         limit,
@@ -127,7 +148,7 @@ export class UserService implements IUserService {
 
       return _ok(paginatedResult, 'Users retrieved successfully');
     } catch (error) {
-      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
+      throw handleServiceError(error, 'Failed to retrieve users');
     }
   }
 
@@ -140,19 +161,12 @@ export class UserService implements IUserService {
   ): Promise<ServiceResponse<User>> {
     try {
       // Check if user exists
-      const existingUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-
-      if (!existingUser.length) {
-        throw createNotFoundError(`User with ID ${userId} not found`);
-      }
+      await this.findUserOrFail(userId);
 
       // If password is being updated, hash it
       let dataToUpdate = { ...userData };
       if (userData.password) {
-        const hashedPassword = await bcrypt.hash(
-          userData.password,
-          parseInt(env.BCRYPT_SALT_ROUNDS.toString(), 10),
-        );
+        const hashedPassword = await this.hashPassword(userData.password);
         dataToUpdate = { ...dataToUpdate, password: hashedPassword };
       }
 
@@ -163,9 +177,13 @@ export class UserService implements IUserService {
         .where(eq(users.id, userId))
         .returning();
 
+      if (!result.length) {
+        throw new DatabaseError('Failed to update user');
+      }
+
       return _ok(result[0], 'User updated successfully');
     } catch (error) {
-      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
+      throw handleServiceError(error, `Failed to update user with ID ${userId}`);
     }
   }
 
@@ -175,18 +193,18 @@ export class UserService implements IUserService {
   async deleteUser(userId: number): Promise<ServiceResponse<void>> {
     try {
       // Check if user exists
-      const existingUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-
-      if (!existingUser.length) {
-        throw createNotFoundError(`User with ID ${userId} not found`);
-      }
+      await this.findUserOrFail(userId);
 
       // Delete user
-      await db.delete(users).where(eq(users.id, userId));
+      const result = await db.delete(users).where(eq(users.id, userId));
+
+      if (!result) {
+        throw new DatabaseError('Failed to delete user');
+      }
 
       return _ok(undefined, 'User deleted successfully', StatusCodes.NO_CONTENT);
     } catch (error) {
-      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
+      throw handleServiceError(error, `Failed to delete user with ID ${userId}`);
     }
   }
 
@@ -196,22 +214,52 @@ export class UserService implements IUserService {
   async verifyPassword(email: string, password: string): Promise<ServiceResponse<User>> {
     try {
       // Get user by email
-      const userResult = await this.getUserByEmail(email);
+      let user: User;
 
-      if (!userResult.success || !userResult.data) {
-        throw createUnauthorizedError('Invalid Email');
+      try {
+        const userResult = await this.getUserByEmail(email);
+        if (!userResult.success || !userResult.data) {
+          throw new UnauthorizedError('Invalid credentials');
+        }
+        user = userResult.data;
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          throw new UnauthorizedError('Invalid credentials');
+        }
+        throw error;
       }
 
       // Verify password
-      const isPasswordValid = await bcrypt.compare(password, userResult.data.password);
+      const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
-        throw createUnauthorizedError('Invalid Password');
+        throw new UnauthorizedError('Invalid credentials');
       }
 
-      return _ok(userResult.data, 'Password verified successfully');
+      return _ok(user, 'Password verified successfully');
     } catch (error) {
-      return _error((error as Error).message, StatusCodes.INTERNAL_SERVER_ERROR);
+      throw handleServiceError(error, 'Password verification failed');
     }
+  }
+
+  /**
+   * Helper method to hash a password
+   */
+  private async hashPassword(password: string): Promise<string> {
+    const saltRounds = parseInt(env.BCRYPT_SALT_ROUNDS.toString(), 10);
+    return bcrypt.hash(password, saltRounds);
+  }
+
+  /**
+   * Helper method to find a user by ID or throw NotFoundError
+   */
+  private async findUserOrFail(userId: number): Promise<User> {
+    const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+    if (!result.length) {
+      throw new NotFoundError(`User with ID ${userId} not found`);
+    }
+
+    return result[0];
   }
 }

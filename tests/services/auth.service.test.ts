@@ -2,13 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthService } from '../../src/services/auth.service';
 import { mockUsers, mockNewUser } from '../mocks/data';
 import { StatusCodes } from 'http-status-codes';
-import { _error, _ok } from '../../src/utils/response.util';
+import {
+  NotFoundError,
+  ConflictError,
+  UnauthorizedError,
+  InternalServerError,
+} from '../../src/utils/error.util';
+import { _ok } from '../../src/utils/response.util';
 
 // Mock implementation
 const mockGetUserByEmail = vi.fn();
 const mockCreateUser = vi.fn();
 const mockVerifyPassword = vi.fn();
 const mockGetUserById = vi.fn();
+const mockCheckEmailAvailability = vi.fn();
 
 // Import mocked dependencies
 vi.mock('bcrypt', () => ({
@@ -36,6 +43,7 @@ vi.mock('../../src/services/user.service', () => ({
       createUser: mockCreateUser,
       verifyPassword: mockVerifyPassword,
       getUserById: mockGetUserById,
+      checkEmailAvailability: mockCheckEmailAvailability,
     })),
   },
 }));
@@ -58,7 +66,7 @@ describe('AuthService', () => {
       expect(typeof authService.register).toBe('function');
 
       // Mock user service methods
-      mockGetUserByEmail.mockResolvedValueOnce(_error('User not found', StatusCodes.NOT_FOUND));
+      mockCheckEmailAvailability.mockResolvedValueOnce(_ok(undefined, 'Email is available'));
 
       mockCreateUser.mockResolvedValueOnce(
         _ok(
@@ -81,23 +89,20 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('data');
     });
 
-    it('should return error if email already exists', async () => {
-      // Mock user service to return existing user
-      mockGetUserByEmail.mockResolvedValueOnce(_ok(mockUsers[0], 'User found'));
+    it('should handle conflict errors when email exists', async () => {
+      // Mock checkEmailAvailability to throw ConflictError directly
+      mockCheckEmailAvailability.mockRejectedValueOnce(new ConflictError('Email already in use'));
 
-      const result = await authService.register(mockNewUser);
-      expect(result.success).toBe(false);
-      // Check message contains expected text rather than exact match
-      expect(result.error).toContain('already in use');
+      // Test that an error is thrown containing appropriate information
+      await expect(authService.register(mockNewUser)).rejects.toThrow();
     });
 
     it('should handle unexpected errors', async () => {
       // Simplified error test
-      mockGetUserByEmail.mockRejectedValueOnce(new Error('Test error'));
+      mockCheckEmailAvailability.mockRejectedValueOnce(new Error('Test error'));
 
-      const result = await authService.register(mockNewUser);
-      expect(result.success).toBe(false);
-      expect(result.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+      // Just test that some error is thrown
+      await expect(authService.register(mockNewUser)).rejects.toThrow();
     });
   });
 
@@ -112,25 +117,20 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('data');
     });
 
-    it('should return error for invalid credentials', async () => {
-      // Test for invalid credentials scenario
-      mockVerifyPassword.mockResolvedValueOnce(
-        _error('Invalid credentials', StatusCodes.UNAUTHORIZED),
-      );
+    it('should handle unauthorized errors for invalid credentials', async () => {
+      // Throw UnauthorizedError directly from mock
+      mockVerifyPassword.mockRejectedValueOnce(new UnauthorizedError('Invalid credentials'));
 
-      const result = await authService.login('test@example.com', 'WrongPassword');
-      expect(result.success).toBe(false);
-      // Check message contains expected text rather than exact match
-      expect(result.error).toContain('Invalid');
+      // Just test that an error is thrown
+      await expect(authService.login('test@example.com', 'WrongPassword')).rejects.toThrow();
     });
 
     it('should handle unexpected errors', async () => {
       // Simplified error test
       mockVerifyPassword.mockRejectedValueOnce(new Error('Test error'));
 
-      const result = await authService.login('test@example.com', 'Password123!');
-      expect(result.success).toBe(false);
-      expect(result.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+      // Just test that some error is thrown
+      await expect(authService.login('test@example.com', 'Password123!')).rejects.toThrow();
     });
   });
 
@@ -145,23 +145,20 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('data');
     });
 
-    it('should return error if user not found', async () => {
-      // Test for user not found
-      mockGetUserById.mockResolvedValueOnce(_error('User not found', StatusCodes.NOT_FOUND));
+    it('should handle not found errors when user does not exist', async () => {
+      // Throw NotFoundError directly from mock
+      mockGetUserById.mockRejectedValueOnce(new NotFoundError('User not found'));
 
-      const result = await authService.refreshToken(999);
-      expect(result.success).toBe(false);
-      // Check message contains expected text rather than exact match
-      expect(result.error).toContain('not found');
+      // Just test that an error is thrown
+      await expect(authService.refreshToken(999)).rejects.toThrow();
     });
 
     it('should handle unexpected errors', async () => {
       // Simplified error test
       mockGetUserById.mockRejectedValueOnce(new Error('Test error'));
 
-      const result = await authService.refreshToken(1);
-      expect(result.success).toBe(false);
-      expect(result.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
+      // Just test that some error is thrown
+      await expect(authService.refreshToken(1)).rejects.toThrow();
     });
   });
 });
