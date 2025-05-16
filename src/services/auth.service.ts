@@ -37,6 +37,8 @@ export class AuthService implements IAuthService {
 
   /**
    * Register a new user
+   * @param userData - The data of the user to register
+   * @returns A service response containing the user
    */
   async register(
     userData: Omit<NewUser, 'id' | 'createdAt' | 'updatedAt'>,
@@ -61,6 +63,9 @@ export class AuthService implements IAuthService {
 
   /**
    * Login user
+   * @param email - The email of the user to login
+   * @param password - The password of the user to login
+   * @returns A service response containing the user and the generated token
    */
   async login(
     email: string,
@@ -92,6 +97,8 @@ export class AuthService implements IAuthService {
 
   /**
    * Generate JWT token
+   * @param user - The user to generate the token for
+   * @returns The generated token
    */
   private generateToken(user: User): string {
     const payload: JwtPayload = {
@@ -105,6 +112,8 @@ export class AuthService implements IAuthService {
 
   /**
    * Refresh token
+   * @param userId - The ID of the user to refresh the token for
+   * @returns A service response containing the refreshed token
    */
   async refreshToken(userId: number): Promise<ServiceResponse<{ token: string }>> {
     try {

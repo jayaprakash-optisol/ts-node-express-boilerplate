@@ -39,6 +39,8 @@ export class UserService implements IUserService {
 
   /**
    * Helper method to check if an email is available
+   * @param email - The email to check
+   * @returns A service response containing the result
    */
   async checkEmailAvailability(email: string): Promise<ServiceResponse<void>> {
     try {
@@ -58,6 +60,8 @@ export class UserService implements IUserService {
 
   /**
    * Create a new user
+   * @param userData - The data of the user to create
+   * @returns A service response containing the user
    */
   async createUser(
     userData: Omit<NewUser, 'id' | 'createdAt' | 'updatedAt'>,
@@ -87,6 +91,8 @@ export class UserService implements IUserService {
 
   /**
    * Get user by ID
+   * @param userId - The ID of the user to get
+   * @returns A service response containing the user
    */
   async getUserById(userId: number): Promise<ServiceResponse<User>> {
     try {
@@ -104,6 +110,8 @@ export class UserService implements IUserService {
 
   /**
    * Get user by email
+   * @param email - The email of the user to get
+   * @returns A service response containing the user
    */
   async getUserByEmail(email: string): Promise<ServiceResponse<User>> {
     try {
@@ -121,6 +129,8 @@ export class UserService implements IUserService {
 
   /**
    * Get all users with pagination
+   * @param pagination - The pagination parameters
+   * @returns A service response containing the users
    */
   async getAllUsers(pagination: PaginationParams): Promise<ServiceResponse<IUserResponse>> {
     try {
@@ -154,6 +164,9 @@ export class UserService implements IUserService {
 
   /**
    * Update user
+   * @param userId - The ID of the user to update
+   * @param userData - The data of the user to update
+   * @returns A service response containing the user
    */
   async updateUser(
     userId: number,
@@ -189,6 +202,8 @@ export class UserService implements IUserService {
 
   /**
    * Delete user
+   * @param userId - The ID of the user to delete
+   * @returns A service response containing the result
    */
   async deleteUser(userId: number): Promise<ServiceResponse<void>> {
     try {
@@ -210,6 +225,9 @@ export class UserService implements IUserService {
 
   /**
    * Verify user password
+   * @param email - The email of the user to verify the password for
+   * @param password - The password of the user to verify
+   * @returns A service response containing the user
    */
   async verifyPassword(email: string, password: string): Promise<ServiceResponse<User>> {
     try {
@@ -244,6 +262,8 @@ export class UserService implements IUserService {
 
   /**
    * Helper method to hash a password
+   * @param password - The password to hash
+   * @returns The hashed password
    */
   private async hashPassword(password: string): Promise<string> {
     const saltRounds = parseInt(env.BCRYPT_SALT_ROUNDS.toString(), 10);
@@ -252,6 +272,8 @@ export class UserService implements IUserService {
 
   /**
    * Helper method to find a user by ID or throw NotFoundError
+   * @param userId - The ID of the user to find
+   * @returns The user
    */
   private async findUserOrFail(userId: number): Promise<User> {
     const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
